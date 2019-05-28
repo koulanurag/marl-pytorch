@@ -1,0 +1,1 @@
+"""Algorithm: Independent Q Learning"""
