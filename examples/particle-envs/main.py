@@ -1,17 +1,23 @@
 import os
 import argparse
 import torch
-from marl.algo import iql
+import marl
+from marl.algo import MADDPG, VDN, IQL
+
+from .make_env import make_env
+from .networks import MADDPGNet, VDNet, IQNet
 
 if __name__ == '__main__':
     # Lets gather arguments
     parser = argparse.ArgumentParser(description='Multi Agent Reinforcement Learning')
-    parser.add_argument('--env', default='CartPole-v0',
+    parser.add_argument('--scenario', default='simple',
                         help='Name of the environment (default: %(default)s)')
     parser.add_argument('--result_dir', default=os.path.join(os.getcwd(), 'results'),
                         help="Directory Path to store results (default: %(default)s)")
     parser.add_argument('--no_cuda', action='store_true', default=False,
                         help='Enforces no cuda usage (default: %(default)s)')
+    parser.add_argument('--algo', choices=['maddpg', 'vdn', 'iql'],
+                        help='Training Algorithm')
     parser.add_argument('--train', action='store_true', default=False,
                         help='Evaluates the discrete model')
     parser.add_argument('--test', action='store_true', default=False,
@@ -31,15 +37,31 @@ if __name__ == '__main__':
     parser.add_argument('--visualize_results', action='store_true', default=False,
                         help='Visualizes the results in the browser (default: %(default)s)')
 
-    # Process arguments and create relative paths to store results
     args = parser.parse_args()
     args.cuda = (not args.no_cuda) and torch.cuda.is_available()
+    args.env_result_dir = os.path.join(args.result_dir, args.env)
+    if not os.path.exists(args.env_result_dir):
+        os.makedirs(args.env_result_dir)
 
-    algo = iql()
+    # initialize environment
+    env_fn = lambda: make_env(args.scenario)
+    env = env_fn()
+    state = env.reset()
+    actions = env.action_space.n
+
+    # initialize algorithms
+
+    if args.algo == 'maddpg':
+        maddpg_net = MADDPGNet()
+        algo = MADDPG(env_fn, maddpg_net)
+    elif args.algo == 'vdn':
+        vdnet = VDNet()
+        algo = VDN(env_fn, vdnet)
+    elif args.algo == 'iql':
+        iqnet = IQNet()
+        algo = IQL(env_fn, iqnet)
 
     if args.train:
-        pass
+        algo.train()
     if args.test:
-        pass
-    if args.visualize_results:
-        pass
+        marl.test()
