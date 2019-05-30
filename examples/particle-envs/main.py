@@ -1,23 +1,24 @@
 import os
 import argparse
 import torch
+import numpy as np
 import marl
 from marl.algo import MADDPG, VDN, IQL
 
-from .make_env import make_env
-from .networks import MADDPGNet, VDNet, IQNet
+from make_env import make_env
+from networks import MADDPGNet, VDNet, IQNet
 
 if __name__ == '__main__':
     # Lets gather arguments
     parser = argparse.ArgumentParser(description='Multi Agent Reinforcement Learning')
-    parser.add_argument('--scenario', default='simple',
+    parser.add_argument('--env', default='simple_spread',
                         help='Name of the environment (default: %(default)s)')
     parser.add_argument('--result_dir', default=os.path.join(os.getcwd(), 'results'),
                         help="Directory Path to store results (default: %(default)s)")
     parser.add_argument('--no_cuda', action='store_true', default=False,
                         help='Enforces no cuda usage (default: %(default)s)')
     parser.add_argument('--algo', choices=['maddpg', 'vdn', 'iql'],
-                        help='Training Algorithm')
+                        help='Training Algorithm', required=True)
     parser.add_argument('--train', action='store_true', default=False,
                         help='Evaluates the discrete model')
     parser.add_argument('--test', action='store_true', default=False,
@@ -43,14 +44,17 @@ if __name__ == '__main__':
     if not os.path.exists(args.env_result_dir):
         os.makedirs(args.env_result_dir)
 
+    # seeding
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+
     # initialize environment
-    env_fn = lambda: make_env(args.scenario)
+    env_fn = lambda: make_env(args.env)
     env = env_fn()
-    state = env.reset()
-    actions = env.action_space.n
+    obs_n = env.reset()
+    action_space_n = env.action_space
 
     # initialize algorithms
-
     if args.algo == 'maddpg':
         maddpg_net = MADDPGNet()
         algo = MADDPG(env_fn, maddpg_net)

@@ -1,14 +1,24 @@
+import torch
+
+
 class _Base:
     """ Base Class for  Multi Agent Algorithms"""
 
-    def __init__(self, env, max_episode_steps):
+    def __init__(self, env, model, lr, discount, batch_size, device):
         """
         :param env: instance of the environment
         """
+
         self.env = env
         self.env.seed(0)
-        self.actions = env.action_space.n
-        self.max_episode_steps = max_episode_steps
+
+        self.model = model
+        self.lr = lr
+        self.discount = discount
+        self.batch_size = batch_size
+        self.device = device
+
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
     def act(self, state, debug=False):
         """ returns greedy action for the state"""
@@ -25,4 +35,3 @@ class _Base:
     def restore(self, path):
         """ save relevant properties from given path"""
         raise NotImplementedError
-

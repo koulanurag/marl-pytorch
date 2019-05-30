@@ -16,3 +16,9 @@ python setup.py install
 
 ## Usage
 
+```python
+>>> from marl.algo import VDN
+>>> algo = VDN(env_fn,model)
+>>> algo.train()
+```
+

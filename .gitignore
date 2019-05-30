@@ -2,3 +2,4 @@
 .idea/**/*.xml
 .idea/**/*.iml
 
+/results
