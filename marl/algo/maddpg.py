@@ -31,14 +31,15 @@ class MADDPG(_Base):
         non_final_next_obs_batch = next_obs_batch[non_final_mask].to(self.device)
 
         # critic loss
-        _, pred_q_values, _ = self.model(obs_batch, action_batch)
-        target_next_state_q = torch.zeros(pred_q_values.shape).to(self.device)
-        _, target_next_state_q[non_final_mask], _ = self.target_model(non_final_next_obs_batch)
-        expected_q_values = (self.discount * target_next_state_q) + reward_batch
-        q_loss = SmoothL1Loss(pred_q_values, expected_q_values).mean()
+        q_loss = 0
+        for i in range(self.model.n_agents):
+            pred_q_value = self.model.agent(i).critic()
+            target_next_obs_q = torch.zeros(pred_q_value.shape).to(self.device)
+            target_next_obs_q[non_final_mask] = self.target_model.agent(i).critic()
+            target_q_value = (self.discount * target_next_obs_q) + reward_batch[i]
+            q_loss += SmoothL1Loss(pred_q_value, target_q_value).mean()
 
         # actor loss
-        actor, pred_q_values, _ = self.model(obs_batch)
         # Todo: Complete this actor loss
         actor_loss = 0
 
@@ -55,6 +56,9 @@ class MADDPG(_Base):
         soft_update(self.target_model, self.model, self.tau)
 
         return 0
+
+    def __select_action(self, obs_n, explore=False):
+        pass
 
     def train(self, episodes):
         self.model.train()

@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import os
 import argparse
 import torch
@@ -5,8 +6,8 @@ import numpy as np
 import marl
 from marl.algo import MADDPG, VDN, IQL
 
-from make_env import make_env
-from networks import MADDPGNet, VDNet, IQNet
+from .make_env import make_env
+from .networks import MADDPGNet, VDNet, IQNet
 
 if __name__ == '__main__':
     # Lets gather arguments
@@ -23,7 +24,7 @@ if __name__ == '__main__':
                         help='Evaluates the discrete model')
     parser.add_argument('--test', action='store_true', default=False,
                         help='Evaluates the discrete model')
-    parser.add_argument('--lr', type=float, default=0.001,
+    parser.add_argument('--lr', type=float, default=0.01,
                         help='Learning rate (default: %(default)s)')
     parser.add_argument('--epochs', type=int, default=10,
                         help='Learning rate (default: %(default)s)')
