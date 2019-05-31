@@ -6,8 +6,8 @@ import numpy as np
 import marl
 from marl.algo import MADDPG, VDN, IQL
 
-from .make_env import make_env
-from .networks import MADDPGNet, VDNet, IQNet
+from make_env import make_env
+from networks import MADDPGNet, VDNet, IQNet
 
 if __name__ == '__main__':
     # Lets gather arguments
@@ -26,6 +26,8 @@ if __name__ == '__main__':
                         help='Evaluates the discrete model')
     parser.add_argument('--lr', type=float, default=0.01,
                         help='Learning rate (default: %(default)s)')
+    parser.add_argument('--discount', type=float, default=0.95,
+                        help='Learning rate (default: %(default)s)')
     parser.add_argument('--epochs', type=int, default=10,
                         help='Learning rate (default: %(default)s)')
     parser.add_argument('--batch_size', type=int, default=32,
@@ -40,7 +42,7 @@ if __name__ == '__main__':
                         help='Visualizes the results in the browser (default: %(default)s)')
 
     args = parser.parse_args()
-    args.cuda = (not args.no_cuda) and torch.cuda.is_available()
+    device = 'cuda' if ((not args.no_cuda) and torch.cuda.is_available()) else 'cpu'
     args.env_result_dir = os.path.join(args.result_dir, args.env)
     if not os.path.exists(args.env_result_dir):
         os.makedirs(args.env_result_dir)
@@ -57,16 +59,17 @@ if __name__ == '__main__':
 
     # initialize algorithms
     if args.algo == 'maddpg':
-        maddpg_net = MADDPGNet()
-        algo = MADDPG(env_fn, maddpg_net)
+        maddpg_net = lambda: MADDPGNet(obs_n, action_space_n)
+        algo = MADDPG(env_fn, maddpg_net, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
+                      device=device, mem_len=10000, tau=0.01)
     elif args.algo == 'vdn':
-        vdnet = VDNet()
+        vdnet = lambda: VDNet()
         algo = VDN(env_fn, vdnet)
     elif args.algo == 'iql':
-        iqnet = IQNet()
+        iqnet = lambda: IQNet()
         algo = IQL(env_fn, iqnet)
 
     if args.train:
-        algo.train()
+        algo.train(episodes=10)
     if args.test:
         marl.test()
