@@ -1,5 +1,5 @@
 import torch
-from torch.autograd import Function as F
+import torch.nn.functional as F
 import numpy as np
 
 

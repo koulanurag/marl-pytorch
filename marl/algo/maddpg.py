@@ -5,13 +5,13 @@
 import torch
 
 from ._base import _Base
-from marl.utils import ReplayMemory, Transition, soft_update, onehot_from_logits
+from marl.utils import ReplayMemory, Transition, soft_update, onehot_from_logits, gumbel_softmax
 from torch.nn import MSELoss, SmoothL1Loss
 
 
 class MADDPG(_Base):
-    def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau):
-        super().__init__(env_fn, model_fn, lr, discount, batch_size, device)
+    def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, path=None):
+        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, path)
         self.memory = ReplayMemory(mem_len)
         self.tau = tau
         self.total_episodes = 10
@@ -19,6 +19,8 @@ class MADDPG(_Base):
         self.target_model = model_fn().to(device)
         self.target_model.load_state_dict(self.model.state_dict())
         self.target_model.eval()
+
+        self.__update_iter = 0
 
     def __update(self, obs_n, action_n, next_obs_n, reward_n, done):
         self.memory.push(obs_n, action_n, next_obs_n, reward_n, done)
@@ -38,9 +40,10 @@ class MADDPG(_Base):
             comb_action_batch = action_batch.flatten(1)
             comb_next_obs_batch = next_obs_batch.flatten(1)
 
-            # critic loss
-            q_loss = 0
+            # calc loss
+            q_loss_n, actor_loss_n = 0, 0
             for i in range(self.model.n_agents):
+                # critic
                 pred_q_value = self.model.agent(i).critic(comb_obs_batch, comb_action_batch)
                 # Todo: Improve over here for processing only non-terminal states
                 target_next_obs_q = torch.zeros(pred_q_value.shape).to(self.device)
@@ -48,16 +51,24 @@ class MADDPG(_Base):
                 target_action_batch = target_action_batch.flatten(1).to(self.device)
                 target_next_obs_q[non_final_mask] = self.target_model.agent(i).critic(comb_next_obs_batch,
                                                                                       target_action_batch)
+                target_q_value = (self.discount * target_next_obs_q).squeeze(1) + reward_batch[:, i]
+                q_loss = SmoothL1Loss()(pred_q_value.squeeze(1), target_q_value).mean()
+                q_loss_n += q_loss
 
-                target_q_value = (self.discount * target_next_obs_q).squeeze(1) + reward_batch[:,i]
-                q_loss += SmoothL1Loss(pred_q_value, target_q_value)
+                # actor
+                actor_i = self.model.agent(i).actor(obs_batch[:, i])
+                _action_batch = action_batch.clone()
+                _action_batch[:, i] = gumbel_softmax(actor_i, hard=True)
+                _action_batch = _action_batch.flatten(1)
+                actor_loss = - self.model.agent(i).critic(comb_obs_batch, _action_batch).mean()
+                actor_loss_n += actor_loss
 
-            # actor loss
-            # Todo: Complete this actor loss
-            actor_loss = 0
+                self.writer.add_scalars('agent_{}/losses'.format(i),
+                                        {'critic_loss': q_loss_n, 'actor_loss': actor_loss_n},
+                                        self.__update_iter)
 
             # Overall loss
-            loss = actor_loss + q_loss
+            loss = actor_loss_n + q_loss_n
 
             # Optimize the model
             self.optimizer.zero_grad()
@@ -67,6 +78,13 @@ class MADDPG(_Base):
 
             # update target network
             soft_update(self.target_model, self.model, self.tau)
+
+            self.writer.add_scalars('overall/losses',
+                                    {'critic_loss': q_loss, 'actor_loss': actor_loss},
+                                    self.__update_iter)
+
+            # just keep track of update counts
+            self.__update_iter += 1
 
         return loss.item()
 
@@ -78,7 +96,7 @@ class MADDPG(_Base):
             action = onehot_from_logits(action, eps=(0.3 if explore else 0)).cpu()
             act_n.append(action.unsqueeze(1))
 
-        return torch.cat(act_n,dim=1)
+        return torch.cat(act_n, dim=1)
 
     def train(self, episodes):
         self.model.train()

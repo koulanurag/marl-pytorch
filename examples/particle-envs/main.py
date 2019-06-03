@@ -61,7 +61,7 @@ if __name__ == '__main__':
     if args.algo == 'maddpg':
         maddpg_net = lambda: MADDPGNet(obs_n, action_space_n)
         algo = MADDPG(env_fn, maddpg_net, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
-                      device=device, mem_len=10000, tau=0.01)
+                      device=device, mem_len=10000, tau=0.01, path=args.env_result_dir)
     elif args.algo == 'vdn':
         vdnet = lambda: VDNet()
         algo = VDN(env_fn, vdnet)
