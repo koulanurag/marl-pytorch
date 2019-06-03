@@ -69,7 +69,11 @@ if __name__ == '__main__':
         iqnet = lambda: IQNet()
         algo = IQL(env_fn, iqnet)
 
-    if args.train:
-        algo.train(episodes=10)
-    if args.test:
-        marl.test()
+    # The real game begins!! Broom, Broom, Broommmm!!
+    try:
+        if args.train:
+            algo.train(episodes=10)
+        if args.test:
+            marl.test()
+    finally:
+        algo.close()

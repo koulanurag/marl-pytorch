@@ -5,5 +5,5 @@
 
 ### Visualize Results
 ```bash
-tensorboard --logdir=runs
+tensorboard --logdir=results
 ```

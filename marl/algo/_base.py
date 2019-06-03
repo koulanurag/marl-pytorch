@@ -1,6 +1,7 @@
 import os
 import torch
 from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
 
 
 class _Base:
@@ -13,6 +14,7 @@ class _Base:
         self.env_fn = env_fn
         self.env = env_fn()
         self.env.seed(0)
+        self.episode_max_steps = 10000
 
         self.model = model_fn().to(device)
         self.lr = lr
@@ -22,26 +24,23 @@ class _Base:
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
-        # Writer will output to ./runs/ directory by default
-        path = os.path.join(path, 'runs')
-        self.writer = SummaryWriter(path if path is not None else ())
+        # logging + visualization
+        self.path = os.path.join(path, self.__class__.__name__, 'runs', datetime.now().strftime('%b%d_%H-%M-%S'))
+        self.model_path = os.path.join(self.path, 'model.p')
+        self.writer = SummaryWriter(self.path)
 
     def act(self, state, debug=False):
         """ returns greedy action for the state"""
         raise NotImplementedError
 
-    def train(self):
-        """ trains the algorithm for given episodes"""
-        raise NotImplementedError
-
-    def save(self, path):
+    def save(self):
         """ save relevant properties in given path"""
-        raise NotImplementedError
+        torch.save(self.model.state_dict(), self.model_path)
 
-    def restore(self, path):
-        """ save relevant properties from given path"""
-        raise NotImplementedError
+    def restore(self):
+        self.model.load_state_dict(torch.load(self.model_path))
 
-    def __del__(self):
-        # self.writer.export_scalars_to_json()
+    def close(self):
+        self.writer.export_scalars_to_json(os.path.join(self.path, 'summary.json'))
         self.writer.close()
+        print('saved')

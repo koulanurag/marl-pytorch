@@ -21,4 +21,4 @@ python setup.py install
 >>> algo = VDN(env_fn,model)
 >>> algo.train()
 ```
-
+Please refer to examples for detailed usage

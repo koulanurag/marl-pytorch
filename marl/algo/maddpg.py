@@ -26,6 +26,7 @@ class MADDPG(_Base):
         self.memory.push(obs_n, action_n, next_obs_n, reward_n, done)
 
         loss = torch.Tensor([0])
+        # Todo: May be wait for experiance buffer to fill minimum and then run updates
         if self.batch_size < len(self.memory):
             transitions = self.memory.sample(self.batch_size)
             batch = Transition(*zip(*transitions))
@@ -63,9 +64,9 @@ class MADDPG(_Base):
                 actor_loss = - self.model.agent(i).critic(comb_obs_batch, _action_batch).mean()
                 actor_loss_n += actor_loss
 
-                self.writer.add_scalars('agent_{}/losses'.format(i),
-                                        {'critic_loss': q_loss_n, 'actor_loss': actor_loss_n},
-                                        self.__update_iter)
+                # log
+                self.writer.add_scalars('agent_{}'.format(i),
+                                        {'critic_loss': q_loss, 'actor_loss': actor_loss}, self.__update_iter)
 
             # Overall loss
             loss = actor_loss_n + q_loss_n
@@ -73,14 +74,15 @@ class MADDPG(_Base):
             # Optimize the model
             self.optimizer.zero_grad()
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 20)
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 40)
             self.optimizer.step()
 
             # update target network
             soft_update(self.target_model, self.model, self.tau)
 
-            self.writer.add_scalars('overall/losses',
-                                    {'critic_loss': q_loss, 'actor_loss': actor_loss},
+            # log
+            self.writer.add_scalars('overall',
+                                    {'critic_loss': q_loss_n, 'actor_loss': actor_loss_n},
                                     self.__update_iter)
 
             # just keep track of update counts
@@ -88,33 +90,97 @@ class MADDPG(_Base):
 
         return loss.item()
 
-    def __select_action(self, model, obs_n, explore=False):
+    @staticmethod
+    def __select_action(model, obs_n, explore=False):
         act_n = []
 
         for i in range(model.n_agents):
             action = model.agent(i).actor(obs_n[:, i])
-            action = onehot_from_logits(action, eps=(0.3 if explore else 0)).cpu()
+            if explore:  # TODO: Exploration rate is in question over here
+                action = gumbel_softmax(action, hard=True)
+            else:
+                action = onehot_from_logits(action)
             act_n.append(action.unsqueeze(1))
 
         return torch.cat(act_n, dim=1)
 
-    def train(self, episodes):
+    def _train(self, episodes):
         self.model.train()
+        train_rewards = []
+        train_loss = 0
+
         for ep in range(episodes):
-            done = False
+            terminal = False
             obs_n = self.env.reset()
             step = 0
-            while not done:
+            ep_reward = [0 for _ in range(self.model.n_agents)]
+            while not terminal:
                 torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
                 action_n = self.__select_action(self.model, torch_obs_n, explore=True)
                 action_n = action_n.cpu().numpy().tolist()[0]
 
-                next_obs_n, reward_n, done, info = self.env.step(action_n)
-                done = True in done
+                next_obs_n, reward_n, done_n, info = self.env.step(action_n)
+                terminal = all(done_n) or step >= self.episode_max_steps
 
-                loss = self.__update(obs_n, action_n, next_obs_n, reward_n, done)
+                loss = self.__update(obs_n, action_n, next_obs_n, reward_n, any(done_n))
+                print(loss)
 
                 obs_n = next_obs_n
                 step += 1
+                train_loss += loss
 
-                print(loss)
+                for i, r_n in enumerate(reward_n):
+                    ep_reward[i] += r_n
+
+            train_rewards.append(ep_reward)
+
+            # log - training
+            for i, r_n in enumerate(ep_reward):
+                self.writer.add_scalars('agent_{}'.format(i),
+                                        {'train_reward': r_n}, self.__update_iter)
+            self.writer.add_scalars('overall'.format(i),
+                                    {'train_reward': sum(ep_reward)}, self.__update_iter)
+
+        return train_rewards, train_loss
+
+    def test(self, episodes):
+        self.model.eval()
+        test_rewards = []
+        for ep in range(episodes):
+            done = False
+            obs_n = self.env.reset()
+            step = 0
+
+            ep_reward = [0 for _ in self.model.n_agents]
+            while not done:
+                torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
+                action_n = self.__select_action(self.model, torch_obs_n, explore=False)
+                action_n = action_n.cpu().numpy().tolist()[0]
+
+                next_obs_n, reward_n, done, info = self.env.step(action_n)
+                done = any(done)
+
+                obs_n = next_obs_n
+                step += 1
+                for i, r_n in enumerate(reward_n):
+                    ep_reward[i] += r_n
+            test_rewards.append(ep_reward)
+
+        # log - test
+        for i, r_n in enumerate(ep_reward):
+            self.writer.add_scalars('agent_{}'.format(i),
+                                    {'eval_reward': r_n}, self.__update_iter)
+        self.writer.add_scalars('overall',
+                                {'eval_reward': sum(ep_reward)}, self.__update_iter)
+
+        return test_rewards
+
+    def train(self, episodes):
+        print('Training......')
+        for ep in range(0, episodes, 2):
+            train_score, train_loss = self._train(2)
+            test_score = self.test(1)
+            self.save()
+
+            print('# {}/{} Loss: {} Train Score: {} Test Score: {}'.format(ep, episodes, train_loss, train_score,
+                                                                           test_score))
