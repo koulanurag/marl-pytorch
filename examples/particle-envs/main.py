@@ -24,7 +24,7 @@ if __name__ == '__main__':
                         help='Evaluates the discrete model')
     parser.add_argument('--test', action='store_true', default=False,
                         help='Evaluates the discrete model')
-    parser.add_argument('--lr', type=float, default=0.01,
+    parser.add_argument('--lr', type=float, default=0.001,
                         help='Learning rate (default: %(default)s)')
     parser.add_argument('--discount', type=float, default=0.95,
                         help='Learning rate (default: %(default)s)')

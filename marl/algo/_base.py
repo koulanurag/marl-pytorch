@@ -14,7 +14,7 @@ class _Base:
         self.env_fn = env_fn
         self.env = env_fn()
         self.env.seed(0)
-        self.episode_max_steps = 10000
+        self.episode_max_steps = 100
 
         self.model = model_fn().to(device)
         self.lr = lr
