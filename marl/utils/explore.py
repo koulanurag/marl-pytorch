@@ -1,4 +1,4 @@
-class _LinearDecay:
+class LinearDecay:
     """ Linearly Decays epsilon for exploration between a range of episodes"""
 
     def __init__(self, min_eps, max_eps, total_episodes):

@@ -3,18 +3,21 @@
     Reference : https://github.com/shariqiqbal2810/maddpg-pytorch/
 """
 import torch
-
+import numpy as np
 from ._base import _Base
 from marl.utils import ReplayMemory, Transition, soft_update, onehot_from_logits, gumbel_softmax
 from torch.nn import MSELoss, SmoothL1Loss
 
 
 class MADDPG(_Base):
-    def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, path=None):
-        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, path)
+    def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, discrete_action_space,
+                 path=None):
+        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, discrete_action_space, path)
         self.memory = ReplayMemory(mem_len)
         self.tau = tau
         self.total_episodes = 10
+
+        self.discrete_action_space = discrete_action_space
 
         self.target_model = model_fn().to(device)
         self.target_model.load_state_dict(self.model.state_dict())
@@ -53,7 +56,7 @@ class MADDPG(_Base):
             target_next_obs_q[non_final_mask[:, i]] = self.target_model.agent(i).critic(comb_next_obs_batch,
                                                                                         target_action_batch)
             target_q_value = (self.discount * target_next_obs_q).squeeze(1) + reward_batch[:, i]
-            q_loss = SmoothL1Loss()(pred_q_value.squeeze(1), target_q_value).mean()
+            q_loss = MSELoss()(pred_q_value.squeeze(1), target_q_value).mean()
             q_loss_n += q_loss
 
             # actor
@@ -106,7 +109,7 @@ class MADDPG(_Base):
     def _train(self, episodes):
         self.model.train()
         train_rewards = []
-        train_loss = None
+        train_loss = []
 
         for ep in range(episodes):
             terminal = False
@@ -127,7 +130,7 @@ class MADDPG(_Base):
                 obs_n = next_obs_n
                 step += 1
                 if loss is not None:
-                    train_loss = loss if train_loss is None else (train_loss + loss)
+                    train_loss.append(loss)
 
                 for i, r_n in enumerate(reward_n):
                     ep_reward[i] += r_n
@@ -139,7 +142,7 @@ class MADDPG(_Base):
                 self.writer.add_scalar('agent_{}/train_reward'.format(i), r_n, self.__update_iter)
             self.writer.add_scalar('overall/train_reward', sum(ep_reward), self.__update_iter)
 
-        return train_rewards, train_loss
+        return train_rewards, (np.mean(train_loss) if len(train_loss)>0 else [])
 
     def test(self, episodes):
         self.model.eval()
@@ -171,13 +174,3 @@ class MADDPG(_Base):
         self.writer.add_scalar('overall/eval_reward', sum(ep_reward), self.__update_iter)
 
         return test_rewards
-
-    def train(self, episodes):
-        print('Training......')
-        for ep in range(0, episodes, 2):
-            train_score, train_loss = self._train(2)
-            test_score = self.test(1)
-            self.save()
-
-            print('# {}/{} Loss: {} Train Score: {} Test Score: {}'.format(ep, episodes, train_loss, train_score,
-                                                                           test_score))
