@@ -4,9 +4,8 @@ Implementations of multi agent reinforcement learning algorithms in pytorch
 
 ### Algorithms :
 * VDN : Value Decomposition Network
-* IQL : Independent Q Learning
 * MADDPG : Multi Agent Deep Deterministic Policy Gradient
-
+* IQL : (Pending)
 ## Installation
 
 ```bash
@@ -18,7 +17,7 @@ python setup.py install
 
 ```python
 >>> from marl.algo import VDN
->>> algo = VDN(env_fn,model)
+>>> algo = VDN(env_fn,model_fn)
 >>> algo.train()
 ```
 Please refer to examples for detailed usage
