@@ -35,6 +35,9 @@ class GymWrapper:
     def render(self, *args, **kargs):
         return self.env.render(*args, **kargs)
 
+    def close(self):
+        return self.env.close()
+
 
 def make_env(scenario_name, benchmark=False):
     '''

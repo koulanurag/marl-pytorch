@@ -16,6 +16,9 @@ class DDPGCritic(nn.Module):
                                      nn.LeakyReLU(),
                                      nn.Linear(128, 1))
 
+        self._critic[-1].weight.data.fill_(0)
+        self._critic[-1].bias.data.fill_(0)
+
     def forward(self, obs_n, action_n):
         x = self.obs_x(obs_n)
         x = self._critic(torch.cat((action_n, x), dim=1))
@@ -62,15 +65,18 @@ class VDAgent(nn.Module):
 
         self.action_space = action_space
 
-        self._critic = nn.Sequential(
+        self.layers = nn.Sequential(
             nn.Linear(obs_space, 128),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Linear(128, 64),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Linear(64, action_space))
 
+        self.layers[-1].weight.data.fill_(0)
+        self.layers[-1].bias.data.fill_(0)
+
     def forward(self, x):
-        return self._critic(x)
+        return self.layers(x)
 
 
 class VDNet(nn.Module):

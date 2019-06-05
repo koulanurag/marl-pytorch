@@ -6,8 +6,8 @@ class LinearDecay:
         self.max_eps = max_eps
         self.total_episodes = total_episodes
         self.curr_episodes = 0
-        # Todo: make 0.7 available as parameter
-        self._threshold_episodes = 0.7 * total_episodes
+        # Todo: make 0.5 available as parameter
+        self._threshold_episodes = 0.5 * total_episodes
         self.eps = max_eps
 
     def update(self):

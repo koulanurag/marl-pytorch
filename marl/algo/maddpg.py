@@ -10,9 +10,9 @@ from torch.nn import MSELoss
 
 
 class MADDPG(_Base):
-    def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, discrete_action_space,
-                 path=None):
-        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, discrete_action_space, path)
+    def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, train_episodes,
+                 episode_max_steps, discrete_action_space, path):
+        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path)
         self.memory = ReplayMemory(mem_len)
         self.tau = tau
         self.total_episodes = 10
@@ -53,8 +53,8 @@ class MADDPG(_Base):
             target_next_obs_q = torch.zeros(pred_q_value.shape).to(self.device)
             target_action_batch = self.__select_action(self.target_model, next_obs_batch)
             target_action_batch = target_action_batch.flatten(1).to(self.device)
-            target_next_obs_q[non_final_mask[:, i]] = self.target_model.agent(i).critic(comb_next_obs_batch,
-                                                                                        target_action_batch)
+            _next_q = self.target_model.agent(i).critic(comb_next_obs_batch, target_action_batch)
+            target_next_obs_q[non_final_mask[:, i]] = _next_q[non_final_mask[:, i]]
             target_q_value = (self.discount * target_next_obs_q).squeeze(1) + reward_batch[:, i]
             q_loss = MSELoss()(pred_q_value.squeeze(1), target_q_value).mean()
             q_loss_n += q_loss
@@ -125,7 +125,6 @@ class MADDPG(_Base):
                 terminal = all(done_n) or step >= self.episode_max_steps
 
                 loss = self.__update(obs_n, action_n, next_obs_n, reward_n, done_n)
-                print(loss)
 
                 obs_n = next_obs_n
                 step += 1
@@ -142,9 +141,9 @@ class MADDPG(_Base):
                 self.writer.add_scalar('agent_{}/train_reward'.format(i), r_n, self.__update_iter)
             self.writer.add_scalar('overall/train_reward', sum(ep_reward), self.__update_iter)
 
-        return train_rewards, (np.mean(train_loss) if len(train_loss)>0 else [])
+        return train_rewards, (np.mean(train_loss) if len(train_loss) > 0 else [])
 
-    def test(self, episodes):
+    def test(self, episodes, render=False, log=False):
         self.model.eval()
         test_rewards = []
         with torch.no_grad():
@@ -155,6 +154,9 @@ class MADDPG(_Base):
 
                 ep_reward = [0 for _ in range(self.model.n_agents)]
                 while not terminal:
+                    if render:
+                        self.env.render()
+
                     torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
                     action_n = self.__select_action(self.model, torch_obs_n, explore=False)
                     action_n = action_n.cpu().numpy().tolist()[0]
@@ -169,8 +171,9 @@ class MADDPG(_Base):
                 test_rewards.append(ep_reward)
 
         # log - test
-        for i, r_n in enumerate(ep_reward):
-            self.writer.add_scalar('agent_{}/eval_reward'.format(i), r_n, self.__update_iter)
-        self.writer.add_scalar('overall/eval_reward', sum(ep_reward), self.__update_iter)
+        if log:
+            for i, r_n in enumerate(ep_reward):
+                self.writer.add_scalar('agent_{}/eval_reward'.format(i), r_n, self.__update_iter)
+            self.writer.add_scalar('overall/eval_reward', sum(ep_reward), self.__update_iter)
 
         return test_rewards

@@ -28,18 +28,14 @@ if __name__ == '__main__':
                         help='Learning rate (default: %(default)s)')
     parser.add_argument('--discount', type=float, default=0.95,
                         help='Learning rate (default: %(default)s)')
-    parser.add_argument('--train_episodes', type=int, default=1000,
+    parser.add_argument('--train_episodes', type=int, default=2000,
                         help='Learning rate (default: %(default)s)')
-    parser.add_argument('--batch_size', type=int, default=32,
+    parser.add_argument('--batch_size', type=int, default=128,
                         help='Learning rate (default: %(default)s)')
+    parser.add_argument('--run_i', type=int, default=1,
+                        help='running iteration (default: %(default)s)')
     parser.add_argument('--seed', type=int, default=0,
                         help='seed (default: %(default)s)')
-    parser.add_argument('--host', default='127.0.0.1',
-                        help='IP address for hosting the data (default: %(default)s)')
-    parser.add_argument('--port', default='8052',
-                        help='hosting port (default:%(default)s)')
-    parser.add_argument('--visualize_results', action='store_true', default=False,
-                        help='Visualizes the results in the browser (default: %(default)s)')
 
     args = parser.parse_args()
     device = 'cuda' if ((not args.no_cuda) and torch.cuda.is_available()) else 'cpu'
@@ -65,8 +61,8 @@ if __name__ == '__main__':
     elif args.algo == 'vdn':
         vdnet_fn = lambda: VDNet(obs_n, action_space_n)
         algo = VDN(env_fn, vdnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
-                   device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
-                   train_episodes=args.train_episodes, episode_max_steps=1000)
+                    device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
+                    train_episodes=args.train_episodes, episode_max_steps=1000)
     elif args.algo == 'iql':
         iqnet = lambda: IQNet()
         algo = IQL(env_fn, iqnet)
@@ -76,6 +72,8 @@ if __name__ == '__main__':
         if args.train:
             algo.train()
         if args.test:
-            algo.test(episodes=10, render=True)
+            algo.restore()
+            test_score = algo.test(episodes=10, render=True, log=False)
+            print(test_score)
     finally:
         algo.close()
