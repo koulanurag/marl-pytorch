@@ -16,6 +16,8 @@ class DDPGCritic(nn.Module):
                                      nn.LeakyReLU(),
                                      nn.Linear(128, 1))
 
+
+
     def forward(self, obs_n, action_n):
         x = self.obs_x(obs_n)
         x = self._critic(torch.cat((action_n, x), dim=1))
@@ -68,6 +70,9 @@ class VDAgent(nn.Module):
             nn.Linear(128, 64),
             nn.LeakyReLU(),
             nn.Linear(64, action_space))
+
+        self._critic[-1].weight.data.fill_(0)
+        self._critic[-1].bias.data.fill_(0)
 
     def forward(self, x):
         return self._critic(x)

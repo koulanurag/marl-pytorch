@@ -4,7 +4,7 @@ import argparse
 import torch
 import numpy as np
 import marl
-from marl.algo import MADDPG, VDN, IQL
+from marl.algo import MADDPG, VDN, IQL,DVDN
 
 from make_env import make_env
 from networks import MADDPGNet, VDNet, IQNet
@@ -28,9 +28,9 @@ if __name__ == '__main__':
                         help='Learning rate (default: %(default)s)')
     parser.add_argument('--discount', type=float, default=0.95,
                         help='Learning rate (default: %(default)s)')
-    parser.add_argument('--train_episodes', type=int, default=1000,
+    parser.add_argument('--train_episodes', type=int, default=2000,
                         help='Learning rate (default: %(default)s)')
-    parser.add_argument('--batch_size', type=int, default=32,
+    parser.add_argument('--batch_size', type=int, default=64,
                         help='Learning rate (default: %(default)s)')
     parser.add_argument('--seed', type=int, default=0,
                         help='seed (default: %(default)s)')
@@ -64,7 +64,7 @@ if __name__ == '__main__':
                       device=device, mem_len=10000, tau=0.01, path=args.env_result_dir)
     elif args.algo == 'vdn':
         vdnet_fn = lambda: VDNet(obs_n, action_space_n)
-        algo = VDN(env_fn, vdnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
+        algo = DVDN(env_fn, vdnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
                    device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
                    train_episodes=args.train_episodes, episode_max_steps=1000)
     elif args.algo == 'iql':

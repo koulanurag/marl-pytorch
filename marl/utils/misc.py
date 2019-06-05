@@ -29,6 +29,20 @@ def hard_update(target, source):
         target_param.data.copy_(param.data)
 
 
+
+def swap_params(first, second):
+    """
+    Copy network parameters from source to target
+    Inputs:
+        target (torch.nn.Module): Net to copy parameters to
+        source (torch.nn.Module): Net whose parameters to copy
+    """
+    for first_param, second_param in zip(first.parameters(), second.parameters()):
+        first = first_param.data
+        first_param.data.copy_(second_param.data)
+        second_param.data.copy_(first_param.data)
+
+
 def onehot_from_logits(logits, eps=0.0):
     """
     Given batch of logits, return one-hot sample using epsilon greedy strategy

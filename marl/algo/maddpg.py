@@ -6,7 +6,7 @@ import torch
 import numpy as np
 from ._base import _Base
 from marl.utils import ReplayMemory, Transition, soft_update, onehot_from_logits, gumbel_softmax
-from torch.nn import MSELoss, SmoothL1Loss
+from torch.nn import MSELoss
 
 
 class MADDPG(_Base):

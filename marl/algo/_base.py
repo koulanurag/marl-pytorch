@@ -26,8 +26,8 @@ class _Base:
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
         # logging + visualization
-        # self.path = os.path.join(path, self.__class__.__name__, 'runs', datetime.now().strftime('%b%d_%H-%M-%S'))
-        self.path = os.path.join(path, self.__class__.__name__, 'runs', 'run_1')
+        self.path = os.path.join(path, self.__class__.__name__, 'runs', datetime.now().strftime('%b%d_%H-%M-%S'))
+        # self.path = os.path.join(path, self.__class__.__name__, 'runs', 'run_1')
         self.model_path = os.path.join(self.path, 'model.p')
         self.writer = SummaryWriter(self.path)
 
