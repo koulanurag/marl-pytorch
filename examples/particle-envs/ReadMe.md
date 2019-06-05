@@ -1,6 +1,7 @@
-# particle env. example
+# particle-envs example
 
-It's used for evaluation of the marl algorithms over single agent environment. This is done for debugging purposes
+### Prerequisites
+* [Open AI - Multi Agent Particle Environment](https://github.com/openai/multiagent-particle-envs.git)
 
 ### Usage
 Please refer to following:
@@ -37,4 +38,4 @@ Example: ``` python main.py --env CartPole-v0 --algo vdn --train```
 tensorboard --logdir=results/<env_name>/<algo_name>/runs
 ```
 
-Example: ```tensorboard --logdir=results/CartPole-v0/VDN/runs```
+Example: ```tensorboard --logdir=results/simple/VDN/runs```
