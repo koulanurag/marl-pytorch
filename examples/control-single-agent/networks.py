@@ -34,6 +34,7 @@ class DDPGAgent(nn.Module):
             num_in_critic (int): number of dimensions for critic input
         """
         super().__init__()
+        self.action_space = num_out_pol
         self.actor = nn.Sequential(nn.Linear(num_in_pol, 128),
                                    nn.ReLU(),
                                    nn.Linear(128, 64),
@@ -69,6 +70,7 @@ class VDAgent(nn.Module):
 
         self._critic = nn.Sequential(
             nn.Linear(obs_space, 128),
+            nn.BatchNorm1d(),
             nn.ReLU(),
             nn.Linear(128, 64),
             nn.ReLU(),

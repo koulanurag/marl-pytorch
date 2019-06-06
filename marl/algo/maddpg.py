@@ -6,22 +6,27 @@ import torch
 import numpy as np
 from ._base import _Base
 from marl.utils import ReplayMemory, Transition, soft_update, onehot_from_logits, gumbel_softmax
+from marl.utils import OUNoise, LinearDecay
 from torch.nn import MSELoss
 
 
 class MADDPG(_Base):
     def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, train_episodes,
                  episode_max_steps, discrete_action_space, path):
+        """ Todo: Write note about usage or if anything specific is required to run"""
         super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path)
         self.memory = ReplayMemory(mem_len)
         self.tau = tau
-        self.total_episodes = 10
-
-        self.discrete_action_space = discrete_action_space
 
         self.target_model = model_fn().to(device)
         self.target_model.load_state_dict(self.model.state_dict())
         self.target_model.eval()
+
+        self.discrete_action_space = discrete_action_space
+        if self.discrete_action_space:
+            self.exploration = LinearDecay(0.1, 2, self.train_episodes)
+        else:
+            self.exploration = [OUNoise(self.model.agent(i).action_space) for i in range(self.model.n_agents)]
 
         self.__update_iter = 0
 
@@ -44,12 +49,12 @@ class MADDPG(_Base):
         comb_action_batch = action_batch.flatten(1)
         comb_next_obs_batch = next_obs_batch.flatten(1)
 
-        # calc loss
+        # calculate loss
         q_loss_n, actor_loss_n = 0, 0
         for i in range(self.model.n_agents):
             # critic
             pred_q_value = self.model.agent(i).critic(comb_obs_batch, comb_action_batch)
-            # Todo: Improve over here for processing only non-terminal states
+
             target_next_obs_q = torch.zeros(pred_q_value.shape).to(self.device)
             target_action_batch = self.__select_action(self.target_model, next_obs_batch)
             target_action_batch = target_action_batch.flatten(1).to(self.device)
@@ -62,9 +67,14 @@ class MADDPG(_Base):
             # actor
             actor_i = self.model.agent(i).actor(obs_batch[:, i])
             _action_batch = action_batch.clone()
-            _action_batch[:, i] = gumbel_softmax(actor_i, hard=True)
+            if self.discrete_action_space:
+                _action_batch[:, i] = gumbel_softmax(actor_i, hard=True)
+            else:
+                _action_batch[:, i] = actor_i
+
             _action_batch = _action_batch.flatten(1)
             actor_loss = - self.model.agent(i).critic(comb_obs_batch, _action_batch).mean()
+            actor_loss += (actor_i ** 2).mean() * 1e-3
             actor_loss_n += actor_loss
 
             # log
@@ -92,16 +102,24 @@ class MADDPG(_Base):
 
         return loss.item()
 
-    @staticmethod
-    def __select_action(model, obs_n, explore=False):
+    def __select_action(self, model, obs_n, explore=False):
         act_n = []
 
         for i in range(model.n_agents):
             action = model.agent(i).actor(obs_n[:, i])
-            if explore:  # TODO: Exploration rate needs to be corrected over here
-                action = gumbel_softmax(action, hard=True)
-            else:
-                action = onehot_from_logits(action)
+            if self.discrete_action_space:
+                if explore:  # TODO: Exploration rate needs to be corrected over here
+                    action = gumbel_softmax(action, temperature=self.exploration.eps, hard=True)
+                else:
+                    action = onehot_from_logits(action)
+            else:  # continuous action
+                if explore:
+                    _noise = torch.FloatTensor(self.exploration[i].noise())
+                    _noise.requires_grad = False
+                    action += _noise
+
+                action = action.clamp(-1, 1)
+
             act_n.append(action.unsqueeze(1))
 
         return torch.cat(act_n, dim=1)
@@ -140,6 +158,7 @@ class MADDPG(_Base):
             for i, r_n in enumerate(ep_reward):
                 self.writer.add_scalar('agent_{}/train_reward'.format(i), r_n, self.__update_iter)
             self.writer.add_scalar('overall/train_reward', sum(ep_reward), self.__update_iter)
+            self.writer.add_scalar('_overall/exploration_temperature', self.exploration.eps, self.__update_iter)
 
         return train_rewards, (np.mean(train_loss) if len(train_loss) > 0 else [])
 
