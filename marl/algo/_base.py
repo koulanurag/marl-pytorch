@@ -30,7 +30,6 @@ class _Base:
         self.path = os.path.join(path, self.__class__.__name__, 'runs', 'run_{}'.format(run_i))
         self.best_model_path = os.path.join(self.path, 'model.p')
         self.last_model_path = os.path.join(self.path, 'last_model.p')
-        self.writer = SummaryWriter(self.path, flush_secs=10)
 
     def act(self, state, debug=False):
         """ returns greedy action for the state"""
@@ -52,10 +51,7 @@ class _Base:
         self.env.close()
 
     def train(self, test_interval=50):
-        # temporary solution of keeping the log dir clean
-        # filelist = [f for f in os.listdir(self.path) if os.path.isfile(os.path.join(self.path, f))]
-        # for f in filelist:
-        #     os.remove(os.path.join(self.path, f))
+        self.writer = SummaryWriter(self.path, flush_secs=10)
 
         print('Training......')
         test_scores = []
@@ -65,17 +61,19 @@ class _Base:
             test_score = self.test(5, log=True)
             test_scores.append(test_score)
 
+            train_score = sum(train_score)
+            test_score = sum(test_score)
             if best_score is None or best_score <= test_score:
                 self.save(self.best_model_path)
                 best_score = test_score
                 print('Best Model Saved!')
 
             print(
-                '# {}/{} Loss: {} Train Score: {} Test Score: {}'.format(ep+test_interval,
+                '# {}/{} Loss: {} Train Score: {} Test Score: {}'.format(ep + test_interval,
                                                                          self.train_episodes,
                                                                          train_loss,
-                                                                         np.mean(train_score),
-                                                                         np.mean(test_score)))
+                                                                         train_score,
+                                                                         test_score))
         # keeping a copy of last trained model
         self.save(self.last_model_path)
         self.__writer_close()

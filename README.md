@@ -10,7 +10,7 @@ Implementations of multi agent reinforcement learning algorithms in pytorch
 
 ```bash
 pip install -r requirements.txt
-python setup.py install
+python setup.py install # use 'develop' instead of 'install' if developing the package
 ```
 
 ## Usage
