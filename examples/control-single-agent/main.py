@@ -55,7 +55,6 @@ if __name__ == '__main__':
     # initialize algorithms
     if args.algo == 'maddpg':
         maddpg_net = lambda: MADDPGNet(obs_n, action_space_n)
-
         algo = MADDPG(env_fn, maddpg_net, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
                       device=device, mem_len=50000, tau=0.01, path=args.env_result_dir, discrete_action_space=True,
                       train_episodes=args.train_episodes, episode_max_steps=5000)

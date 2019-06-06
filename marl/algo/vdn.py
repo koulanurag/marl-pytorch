@@ -24,9 +24,12 @@ class VDN(_Base):
         self.__update_iter = 0
 
     def __update(self, obs_n, action_n, next_obs_n, reward_n, done):
+        self.model.train()
+
         self.memory.push(obs_n, action_n, next_obs_n, reward_n, done)
 
         if self.batch_size > len(self.memory):
+            self.model.eval()
             return None
 
         # Todo: move this beta in the Prioritized Replay memory
@@ -67,7 +70,7 @@ class VDN(_Base):
         # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 10)
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
         self.memory.update_priorities(indices, prios.data.cpu().numpy())
         self.optimizer.step()
 
@@ -83,6 +86,9 @@ class VDN(_Base):
 
         # just keep track of update counts
         self.__update_iter += 1
+
+        # resuming the model in eval mode
+        self.model.eval()
 
         return loss.item()
 
@@ -103,7 +109,7 @@ class VDN(_Base):
         return torch.Tensor(act_n)
 
     def _train(self, episodes):
-        self.model.train()
+        self.model.eval()
         train_rewards = []
         train_loss = []
 

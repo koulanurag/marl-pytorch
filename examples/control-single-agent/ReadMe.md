@@ -31,6 +31,8 @@ optional arguments:
   --seed SEED           seed (default: 0)
 ```
 Example: ``` python main.py --env CartPole-v0 --algo vdn --train```
+
+Example: ``` python main.py --env CartPole-v0 --algo maddpg --train```
     
 ### Visualize Training
 ```bash

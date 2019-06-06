@@ -9,10 +9,13 @@ class DDPGCritic(nn.Module):
                                    nn.ReLU())
 
         self._critic = nn.Sequential(nn.Linear(action_space_n + 1024, 512),
+                                     # nn.BatchNorm1d(512),
                                      nn.ReLU(),
                                      nn.Linear(512, 256),
+                                     # nn.BatchNorm1d(256),
                                      nn.ReLU(),
                                      nn.Linear(256, 128),
+                                     # nn.BatchNorm1d(128),
                                      nn.ReLU(),
                                      nn.Linear(128, 1))
 
@@ -36,8 +39,10 @@ class DDPGAgent(nn.Module):
         super().__init__()
         self.action_space = num_out_pol
         self.actor = nn.Sequential(nn.Linear(num_in_pol, 128),
+                                   # nn.BatchNorm1d(128),
                                    nn.ReLU(),
                                    nn.Linear(128, 64),
+                                   # nn.BatchNorm1d(64),
                                    nn.ReLU(),
                                    nn.Linear(64, num_out_pol))
 
@@ -70,9 +75,10 @@ class VDAgent(nn.Module):
 
         self._critic = nn.Sequential(
             nn.Linear(obs_space, 128),
-            nn.BatchNorm1d(),
+            # nn.BatchNorm1d(128),
             nn.ReLU(),
             nn.Linear(128, 64),
+            # nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.Linear(64, action_space))
 

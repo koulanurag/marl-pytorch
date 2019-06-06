@@ -5,7 +5,8 @@
 import torch
 import numpy as np
 from ._base import _Base
-from marl.utils import ReplayMemory, Transition, soft_update, onehot_from_logits, gumbel_softmax
+from marl.utils import PrioritizedReplayMemory, ReplayMemory, Transition, soft_update, onehot_from_logits, \
+    gumbel_softmax
 from marl.utils import OUNoise, LinearDecay
 from torch.nn import MSELoss
 
@@ -16,6 +17,7 @@ class MADDPG(_Base):
         """ Todo: Write note about usage or if anything specific is required to run"""
         super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path)
         self.memory = ReplayMemory(mem_len)
+        # self.memory = PrioritizedReplayMemory(mem_len)
         self.tau = tau
 
         self.target_model = model_fn().to(device)
@@ -31,11 +33,19 @@ class MADDPG(_Base):
         self.__update_iter = 0
 
     def __update(self, obs_n, action_n, next_obs_n, reward_n, done):
+        self.model.train()
         self.memory.push(obs_n, action_n, next_obs_n, reward_n, done)
 
         if self.batch_size > len(self.memory):
+            self.model.eval()
             return None
 
+        # transitions = self.memory.sample(self.batch_size)
+        # Todo: move this beta in the Prioritized Replay memory
+        # beta_start = 0.4
+        # beta = min(1.0, beta_start + (self.__update_iter + 1) * (1.0 - beta_start) / 5000)
+
+        # transitions, indices, weights = self.memory.sample(self.batch_size, beta)
         transitions = self.memory.sample(self.batch_size)
         batch = Transition(*zip(*transitions))
 
@@ -44,6 +54,7 @@ class MADDPG(_Base):
         reward_batch = torch.FloatTensor(list(batch.reward)).to(self.device)
         next_obs_batch = torch.FloatTensor(list(batch.next_state)).to(self.device)
         non_final_mask = 1 - torch.ByteTensor(list(batch.done)).to(self.device)
+        # weights = torch.FloatTensor(weights).to(self.device)
 
         comb_obs_batch = obs_batch.flatten(1)
         comb_action_batch = action_batch.flatten(1)
@@ -51,6 +62,7 @@ class MADDPG(_Base):
 
         # calculate loss
         q_loss_n, actor_loss_n = 0, 0
+        # prios_n = 0
         for i in range(self.model.n_agents):
             # critic
             pred_q_value = self.model.agent(i).critic(comb_obs_batch, comb_action_batch)
@@ -63,6 +75,11 @@ class MADDPG(_Base):
             target_q_value = (self.discount * target_next_obs_q).squeeze(1) + reward_batch[:, i]
             q_loss = MSELoss()(pred_q_value.squeeze(1), target_q_value).mean()
             q_loss_n += q_loss
+
+            # q_loss = (pred_q_value.squeeze(1) - target_q_value).pow(2) * weights
+            # prios_n += q_loss + 1e-5
+            # q_loss = q_loss.mean()
+            # q_loss_n += q_loss
 
             # actor
             actor_i = self.model.agent(i).actor(obs_batch[:, i])
@@ -83,11 +100,13 @@ class MADDPG(_Base):
 
         # Overall loss
         loss = actor_loss_n + q_loss_n
+        # prios_n /= self.model.n_agents
 
         # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 10)
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
+        # self.memory.update_priorities(indices, prios_n.data.cpu().numpy())
         self.optimizer.step()
 
         # update target network
@@ -99,6 +118,9 @@ class MADDPG(_Base):
 
         # just keep track of update counts
         self.__update_iter += 1
+
+        # resuming the model in eval mode
+        self.model.eval()
 
         return loss.item()
 
@@ -125,7 +147,7 @@ class MADDPG(_Base):
         return torch.cat(act_n, dim=1)
 
     def _train(self, episodes):
-        self.model.train()
+        self.model.eval()
         train_rewards = []
         train_loss = []
 
