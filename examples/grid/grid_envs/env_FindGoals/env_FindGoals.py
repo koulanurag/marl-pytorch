@@ -4,6 +4,7 @@ from matplotlib.gridspec import GridSpec
 import cv2
 from gym import spaces
 
+
 class EnvFindGoals(object):
 
     def __init__(self):
@@ -215,6 +216,32 @@ class EnvFindGoals(object):
                     obs[3 - i, j, 1] = 0
                     obs[3 - i, j, 2] = 1
         return obs
+
+    def _neighbour(self,home,stranger):
+        """
+             1 2 3
+            4Home2
+              3
+        """
+        state = [0 for _ in range(4)]
+        if [home[0]-1, home[0]-1] == stranger :
+            state[0]=1
+        elif [home[0]-1, home[0]-1]
+
+    def _get_agt1_obs(self):
+        agent_1_obs = self.agt1_pos
+        neighbour = [0 for _ in range(4)]
+
+
+        pass
+
+    def _get_agt2_obs(self):
+        pass
+
+    def _get_obs(self):
+        """ this is sent for training"""
+        agent_1_obs = self.agt1_pos
+        agent_1_obs += [0 for _ in range(4)]
 
     def get_obs(self):
         return [self.get_agt1_obs(), self.get_agt2_obs()]
