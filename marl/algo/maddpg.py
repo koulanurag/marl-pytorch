@@ -113,8 +113,8 @@ class MADDPG(_Base):
         soft_update(self.target_model, self.model, self.tau)
 
         # log
-        self.writer.add_scalar('overall/critic_loss', q_loss_n, self.__update_iter)
-        self.writer.add_scalar('overall/actor_loss', actor_loss_n, self.__update_iter)
+        self.writer.add_scalar('_overall/critic_loss', q_loss_n, self.__update_iter)
+        self.writer.add_scalar('_overall/actor_loss', actor_loss_n, self.__update_iter)
 
         # just keep track of update counts
         self.__update_iter += 1
@@ -157,10 +157,12 @@ class MADDPG(_Base):
             step = 0
             ep_reward = [0 for _ in range(self.model.n_agents)]
             while not terminal:
+                self.env.render()
+
                 torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
                 action_n = self.__select_action(self.model, torch_obs_n, explore=True)
                 action_n = action_n.cpu().detach().numpy().tolist()[0]
-
+                # print(action_n)
                 next_obs_n, reward_n, done_n, info = self.env.step(action_n)
                 terminal = all(done_n) or step >= self.episode_max_steps
 
@@ -175,14 +177,18 @@ class MADDPG(_Base):
                     ep_reward[i] += r_n
 
             train_rewards.append(ep_reward)
+            if self.discrete_action_space:
+                self.exploration.update()
 
             # log - training
             for i, r_n in enumerate(ep_reward):
                 self.writer.add_scalar('agent_{}/train_reward'.format(i), r_n, self.__update_iter)
-            self.writer.add_scalar('overall/train_reward', sum(ep_reward), self.__update_iter)
+            self.writer.add_scalar('_overall/train_reward', sum(ep_reward), self.__update_iter)
             self.writer.add_scalar('_overall/exploration_temperature', self.exploration.eps, self.__update_iter)
 
-        return train_rewards, (np.mean(train_loss) if len(train_loss) > 0 else [])
+            print(ep, sum(ep_reward))
+
+        return np.array(train_rewards).mean(axis=0), (np.mean(train_loss) if len(train_loss) > 0 else [])
 
     def test(self, episodes, render=False, log=False):
         self.model.eval()
@@ -211,10 +217,11 @@ class MADDPG(_Base):
                         ep_reward[i] += r_n
                 test_rewards.append(ep_reward)
 
-        # log - test
+        test_rewards = np.array(test_rewards).mean(axis=0)
         if log:
-            for i, r_n in enumerate(ep_reward):
+            # log - test
+            for i, r_n in enumerate(test_rewards):
                 self.writer.add_scalar('agent_{}/eval_reward'.format(i), r_n, self.__update_iter)
-            self.writer.add_scalar('overall/eval_reward', sum(ep_reward), self.__update_iter)
+            self.writer.add_scalar('_overall/eval_reward', sum(test_rewards), self.__update_iter)
 
         return test_rewards

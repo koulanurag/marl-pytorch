@@ -3,7 +3,7 @@ import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
 import numpy as np
-from .utils import draw_grid, fill_cell
+from ..utils import draw_grid, fill_cell
 import copy
 
 logger = logging.getLogger(__name__)
@@ -114,8 +114,6 @@ class CrossOver(gym.Env):
         return self.agent_pos[agent_i] == self.final_agent_pos[agent_i]
 
     def step(self, one_hot_actions):
-        # print(self._full_obs)
-        # print(self._agent_dones)
         self._step_count += 1
         rewards = [0 for _ in range(self.n_agents)]
         for agent_i, action in enumerate(one_hot_actions):

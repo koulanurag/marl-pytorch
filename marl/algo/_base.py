@@ -24,7 +24,7 @@ class _Base:
         self.batch_size = batch_size
         self.device = device
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
 
         # logging + visualization
         self.path = os.path.join(path, self.__class__.__name__, 'runs', 'run_{}'.format(run_i))
