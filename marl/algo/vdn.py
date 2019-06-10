@@ -120,7 +120,7 @@ class VDN(_Base):
             step = 0
             ep_reward = [0 for _ in range(self.model.n_agents)]
             while not terminal:
-                self.env.render()
+                # self.env.render()
 
                 torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
                 action_n = self.__select_action(self.model, torch_obs_n, explore=True)
@@ -148,7 +148,7 @@ class VDN(_Base):
             self.writer.add_scalar('_overall/train_reward', sum(ep_reward), self.__update_iter)
             self.writer.add_scalar('_overall/exploration_rate', self.exploration.eps, self.__update_iter)
 
-            print(ep, sum(ep_reward))
+            # print(ep, sum(ep_reward))
 
         return np.array(train_rewards).mean(axis=0), (np.mean(train_loss) if len(train_loss) > 0 else [])
 

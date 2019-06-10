@@ -3,11 +3,10 @@ import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
 import numpy as np
-from ..utils import draw_grid, fill_cell
+from ..utils import draw_grid, fill_cell, draw_cell_outline, draw_circle
 import copy
 
 logger = logging.getLogger(__name__)
-import os, signal
 
 
 class CrossOver(gym.Env):
@@ -42,6 +41,10 @@ class CrossOver(gym.Env):
             for col in range(self._grid_shape[1]):
                 if self.__wall_exists((row, col)):
                     fill_cell(self._base_img, (row, col), cell_size=CELL_SIZE, fill=WALL_COLOR)
+
+        for agent_i, pos in self.final_agent_pos.items():
+            row, col = pos[0], pos[1]
+            draw_cell_outline(self._base_img, (row, col), cell_size=CELL_SIZE, fill=AGENT_COLORS[agent_i])
 
     def __create_grid(self):
         _grid = np.zeros(self._grid_shape)
@@ -100,15 +103,10 @@ class CrossOver(gym.Env):
             self._full_obs[curr_pos[0], curr_pos[1]] = 0
             self.__update_agent_view(agent_i)
         else:
-            # print('position not updated')
             pass
 
     def __update_agent_view(self, agent_i):
         self._full_obs[self.agent_pos[agent_i][0], self.agent_pos[agent_i][1]] = agent_i + 1
-
-        if (np.count_nonzero(np.array(self._full_obs)==1) > 1) or (np.count_nonzero(np.array(self._full_obs)==2) > 1):
-            print('hello')
-            pass
 
     def __is_agent_done(self, agent_i):
         return self.agent_pos[agent_i] == self.final_agent_pos[agent_i]
@@ -129,14 +127,12 @@ class CrossOver(gym.Env):
             for i in range(self.n_agents):
                 self._agent_dones[i] = True
 
-        # self.__update_agent_view(agent_i)
-
         return self.get_agent_obs(), rewards, self._agent_dones, {}
 
     def render(self, mode='human'):
         img = copy.copy(self._base_img)
         for agent_i in range(self.n_agents):
-            fill_cell(img, self.agent_pos[agent_i], cell_size=CELL_SIZE, fill=AGENT_COLORS[agent_i])
+            draw_circle(img, self.agent_pos[agent_i], cell_size=CELL_SIZE, fill=AGENT_COLORS[agent_i])
         img = np.asarray(img)
 
         if mode == 'rgb_array':

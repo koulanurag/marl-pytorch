@@ -1,7 +1,7 @@
 from PIL import Image, ImageDraw
 
 
-def draw_grid(rows, cols, cell_size=50,fill='black'):
+def draw_grid(rows, cols, cell_size=50, fill='black'):
     height = rows * cell_size
     width = cols * cell_size
     image = Image.new(mode='RGB', size=(width, height), color=fill)
@@ -33,3 +33,19 @@ def fill_cell(image, pos, cell_size=50, fill='black'):
     row, col = row * cell_size, col * cell_size
 
     ImageDraw.Draw(image).rectangle([(row, col), (row + cell_size, col + cell_size)], fill=fill)
+
+
+def draw_cell_outline(image, pos, cell_size=50, fill='black'):
+    col, row = pos
+    row, col = row * cell_size, col * cell_size
+
+    ImageDraw.Draw(image).rectangle([(row, col), (row + cell_size, col + cell_size)], outline=fill)
+
+
+def draw_circle(image, pos, cell_size=50, fill='black'):
+    col, row = pos
+    row, col = row * cell_size, col * cell_size
+    gap = cell_size * 0.4
+    x, y = row + gap, col + gap
+    x_dash, y_dash = row + cell_size - gap, col + cell_size - gap
+    ImageDraw.Draw(image).arc([(x, y), (x_dash, y_dash)], start=0, end=360, fill=fill)
