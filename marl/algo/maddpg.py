@@ -157,7 +157,7 @@ class MADDPG(_Base):
             step = 0
             ep_reward = [0 for _ in range(self.model.n_agents)]
             while not terminal:
-                self.env.render()
+                #self.env.render()
 
                 torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
                 action_n = self.__select_action(self.model, torch_obs_n, explore=True)

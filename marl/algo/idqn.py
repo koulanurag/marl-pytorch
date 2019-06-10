@@ -7,8 +7,8 @@ from torch.nn import MSELoss
 import numpy as np
 
 
-class IQL(_Base):
-    """Independent Q Learning + Double DQN + Prioritized Replay + Soft Target Updates"""
+class IDQN(_Base):
+    """Independent DQN + Double DQN + Prioritized Replay + Soft Target Updates"""
 
     def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, train_episodes,
                  episode_max_steps, path):
@@ -47,32 +47,34 @@ class IQL(_Base):
         non_final_mask = 1 - torch.ByteTensor(list(batch.done)).to(self.device)
 
         # calc loss
-        overall_pred_q, target_q = 0, 0
-        loss_n = 0
+        prios = 0
+        overall_loss = 0
         for i in range(self.model.n_agents):
             q_val_i = self.model.agent(i)(obs_batch[:, i])
-            overall_pred_q += q_val_i.gather(1, action_batch[:, i, :].long())
+            pred_q = q_val_i.gather(1, action_batch[:, i, :].long())
 
-            target_next_obs_q = torch.zeros(overall_pred_q.shape).to(self.device)
+            target_next_obs_q = torch.zeros(pred_q.shape).to(self.device)
             non_final_next_obs_batch = next_obs_batch[:, i][non_final_mask[:, i]]
 
             # Double DQN update
-            _max_actions = self.model.agent(i)(non_final_next_obs_batch).max(1, keepdim=True)[1].detach()
-            _max_q = self.target_model.agent(i)(non_final_next_obs_batch).gather(1, _max_actions)
-            target_next_obs_q[non_final_mask[:, i]] = _max_q
+            target_q = 0
+            if not (non_final_next_obs_batch.shape[0] == 0):
+                _max_actions = self.model.agent(i)(non_final_next_obs_batch).max(1, keepdim=True)[1].detach()
+                _max_q = self.target_model.agent(i)(non_final_next_obs_batch).gather(1, _max_actions)
+                target_next_obs_q[non_final_mask[:, i]] = _max_q
 
-            target_q += target_next_obs_q.detach()
+                target_q = target_next_obs_q.detach()
 
             target_q = (self.discount * target_q) + reward_batch.sum(dim=1, keepdim=True)
-            loss = (overall_pred_q - target_q).pow(2) * weights.unsqueeze(1)
-            loss_n += loss
-
-        prios = loss_n + 1e-5
-        loss_n = loss_n.mean()
+            loss = (pred_q - target_q).pow(2) * weights.unsqueeze(1)
+            prios += loss + 1e-5
+            loss = loss.mean()
+            overall_loss += loss
+            self.writer.add_scalar('agent_{}/critic_loss'.format(i), loss.item(), self.__update_iter)
 
         # Optimize the model
         self.optimizer.zero_grad()
-        loss_n.backward()
+        overall_loss.backward()
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
         self.memory.update_priorities(indices, prios.data.cpu().numpy())
         self.optimizer.step()
@@ -81,7 +83,7 @@ class IQL(_Base):
         soft_update(self.target_model, self.model, self.tau)
 
         # log
-        self.writer.add_scalar('_overall/critic_loss', loss, self.__update_iter)
+        self.writer.add_scalar('_overall/critic_loss', overall_loss, self.__update_iter)
         self.writer.add_scalar('_overall/beta', beta, self.__update_iter)
 
         # just keep track of update counts
@@ -105,7 +107,6 @@ class IQL(_Base):
 
             act_n.append(one_hot_action)
 
-        # return torch.cat(act_n, dim=1)
         return torch.Tensor(act_n)
 
     def _train(self, episodes):
@@ -119,6 +120,8 @@ class IQL(_Base):
             step = 0
             ep_reward = [0 for _ in range(self.model.n_agents)]
             while not terminal:
+                # self.env.render()
+
                 torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
                 action_n = self.__select_action(self.model, torch_obs_n, explore=True)
                 action_n = action_n.cpu().detach().numpy().tolist()
@@ -145,7 +148,9 @@ class IQL(_Base):
             self.writer.add_scalar('_overall/train_reward', sum(ep_reward), self.__update_iter)
             self.writer.add_scalar('_overall/exploration_rate', self.exploration.eps, self.__update_iter)
 
-        return train_rewards, (np.mean(train_loss) if len(train_loss) > 0 else [])
+            print(ep, sum(ep_reward))
+
+        return np.array(train_rewards).mean(axis=0), (np.mean(train_loss) if len(train_loss) > 0 else [])
 
     def test(self, episodes, render=False, log=False):
         self.model.eval()
@@ -165,6 +170,10 @@ class IQL(_Base):
                     action_n = self.__select_action(self.model, torch_obs_n, explore=False)
                     action_n = action_n.cpu().numpy().tolist()
 
+                    # input_action = [int(x) for x in input('enter:')]
+                    # action_n = np.zeros(np.array(action_n).shape).tolist()
+                    # for i, a in enumerate(input_action):
+                    #     action_n[i][a] = 1
                     next_obs_n, reward_n, done_n, info = self.env.step(action_n)
                     terminal = all(done_n) or step >= self.episode_max_steps
 

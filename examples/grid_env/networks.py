@@ -95,28 +95,6 @@ class VDNet(nn.Module):
         return getattr(self, 'agent_{}'.format(i))
 
 
-class IQNet(nn.Module):
-    def __init__(self, input, actions):
-        super().__init__()
-        self.n_agents = len(input)
-
-        for i in range(self.n_agents):
-            setattr(self, 'agent_{}_net'.format(i),
-                    nn.Sequential(nn.Linear(input, 128),
-                                  nn.LeakyReLU(),
-                                  nn.Linear(128, 64),
-                                  nn.LeakyReLU(),
-                                  nn.Linear(64, actions)))
-
-    def act(self, id):
-        """ returns only actor for an agent"""
-        x = getattr(self, 'agent_{}_net'.format(id), )
-        return x
-
-    def forward(self, *input):
-        critic = None, None
-        for i in range(self.n_agents):
-            q = getattr(self, 'agent_{}_net'.format(i), input)
-            critic.append(q)
-        info = {}
-        return critic, info
+class IDQNet(VDNet):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)

@@ -103,7 +103,7 @@ class VDN(_Base):
                 one_hot_action[random.randint(0, len(one_hot_action) - 1)] = 1
             else:
                 one_hot_action[model.agent(i)(obs_n[:, i]).argmax(1).item()] = 1
-
+            print(i, ' ', obs_n[:, i], model.agent(i)(obs_n[:, i]), one_hot_action)
             act_n.append(one_hot_action)
 
         # return torch.cat(act_n, dim=1)

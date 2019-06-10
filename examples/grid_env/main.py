@@ -6,10 +6,10 @@ import numpy as np
 import gym
 
 import marl
-from marl.algo import MADDPG, VDN, IQL
+from marl.algo import MADDPG, VDN, IDQN
 
 import ma_gym
-from networks import MADDPGNet, VDNet, IQNet
+from networks import MADDPGNet, VDNet, IDQNet
 
 if __name__ == '__main__':
     # Lets gather arguments
@@ -20,7 +20,7 @@ if __name__ == '__main__':
                         help="Directory Path to store results (default: %(default)s)")
     parser.add_argument('--no_cuda', action='store_true', default=False,
                         help='Enforces no cuda usage (default: %(default)s)')
-    parser.add_argument('--algo', choices=['maddpg', 'vdn', 'iql'],
+    parser.add_argument('--algo', choices=['maddpg', 'vdn', 'idqn'],
                         help='Training Algorithm', required=True)
     parser.add_argument('--train', action='store_true', default=False,
                         help='Trains the model')
@@ -64,9 +64,11 @@ if __name__ == '__main__':
         algo = VDN(env_fn, vdnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
                    device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
                    train_episodes=args.train_episodes, episode_max_steps=5000)
-    elif args.algo == 'iql':
-        iqnet = lambda: IQNet(obs_n, action_space_n)
-        algo = IQL(env_fn, iqnet)
+    elif args.algo == 'idqn':
+        iqnet_fn = lambda: IDQNet(obs_n, action_space_n)
+        algo = IDQN(env_fn, iqnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
+                   device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
+                   train_episodes=args.train_episodes, episode_max_steps=5000)
 
     # The real game begins!! Broom, Broom, Broommmm!!
     try:
