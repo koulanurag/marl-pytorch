@@ -11,8 +11,8 @@ class IDQN(_Base):
     """Independent DQN + Double DQN + Prioritized Replay + Soft Target Updates"""
 
     def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, train_episodes,
-                 episode_max_steps, path):
-        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path)
+                 episode_max_steps, path,run_i=1):
+        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path,run_i=run_i)
         self.memory = PrioritizedReplayMemory(mem_len)
         self.tau = tau
 

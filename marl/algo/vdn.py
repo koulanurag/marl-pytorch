@@ -11,8 +11,9 @@ class VDN(_Base):
     """Value Decomposition Network + Double DQN + Prioritized Replay + Soft Target Updates"""
 
     def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, train_episodes,
-                 episode_max_steps, path):
-        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path)
+                 episode_max_steps, path, run_i=1):
+        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path,
+                         run_i=run_i)
         self.memory = PrioritizedReplayMemory(mem_len)
         self.tau = tau
 
@@ -103,7 +104,7 @@ class VDN(_Base):
                 one_hot_action[random.randint(0, len(one_hot_action) - 1)] = 1
             else:
                 one_hot_action[model.agent(i)(obs_n[:, i]).argmax(1).item()] = 1
-            print(i, ' ', obs_n[:, i], model.agent(i)(obs_n[:, i]), one_hot_action)
+            # print(i, ' ', obs_n[:, i], model.agent(i)(obs_n[:, i]), one_hot_action)
             act_n.append(one_hot_action)
 
         # return torch.cat(act_n, dim=1)
@@ -160,7 +161,6 @@ class VDN(_Base):
                 terminal = False
                 obs_n = self.env.reset()
                 step = 0
-
                 ep_reward = [0 for _ in range(self.model.n_agents)]
                 while not terminal:
                     if render:

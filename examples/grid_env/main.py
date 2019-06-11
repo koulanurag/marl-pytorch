@@ -36,6 +36,8 @@ if __name__ == '__main__':
                         help='Learning rate (default: %(default)s)')
     parser.add_argument('--seed', type=int, default=0,
                         help='seed (default: %(default)s)')
+    parser.add_argument('--run_i', type=int, default=1,
+                        help='run_i (default: %(default)s)')
 
     args = parser.parse_args()
     device = 'cuda' if ((not args.no_cuda) and torch.cuda.is_available()) else 'cpu'
@@ -58,25 +60,25 @@ if __name__ == '__main__':
         maddpg_net = lambda: MADDPGNet(obs_n, action_space_n)
         algo = MADDPG(env_fn, maddpg_net, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
                       device=device, mem_len=50000, tau=0.01, path=args.env_result_dir, discrete_action_space=True,
-                      train_episodes=args.train_episodes, episode_max_steps=5000)
+                      train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
     elif args.algo == 'vdn':
         vdnet_fn = lambda: VDNet(obs_n, action_space_n)
         algo = VDN(env_fn, vdnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
                    device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
-                   train_episodes=args.train_episodes, episode_max_steps=5000)
+                   train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
     elif args.algo == 'idqn':
         iqnet_fn = lambda: IDQNet(obs_n, action_space_n)
         algo = IDQN(env_fn, iqnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
-                   device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
-                   train_episodes=args.train_episodes, episode_max_steps=5000)
+                    device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
+                    train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
 
     # The real game begins!! Broom, Broom, Broommmm!!
     try:
         if args.train:
-            algo.train()
+            algo.train(test_interval=50)
         if args.test:
             algo.restore()
-            test_score = algo.test(episodes=10, render=True, log=False)
+            test_score = algo.test(episodes=1, render=True, log=False)
             print(test_score)
     finally:
         algo.close()

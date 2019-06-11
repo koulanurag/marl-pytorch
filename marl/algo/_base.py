@@ -8,13 +8,13 @@ class _Base:
     """ Base Class for  Multi Agent Algorithms"""
 
     def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path,
-                 run_i=1):
+                 run_i):
         """
         :param env: instance of the environment
         """
         self.env_fn = env_fn
         self.env = env_fn()
-        self.env.seed(0)
+        self.env.seed(run_i)
         self.train_episodes = train_episodes
         self.episode_max_steps = episode_max_steps
 
@@ -24,7 +24,7 @@ class _Base:
         self.batch_size = batch_size
         self.device = device
 
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
         # logging + visualization
         self.path = os.path.join(path, self.__class__.__name__, 'runs', 'run_{}'.format(run_i))
