@@ -5,16 +5,10 @@ import torch.nn as nn
 class DDPGCritic(nn.Module):
     def __init__(self, obs_space_n, action_space_n):
         super().__init__()
-        self.obs_x = nn.Sequential(nn.Linear(obs_space_n, 1024),
+        self.obs_x = nn.Sequential(nn.Linear(obs_space_n, 128),
                                    nn.ReLU())
 
-        self._critic = nn.Sequential(nn.Linear(action_space_n + 1024, 512),
-                                     nn.ReLU(),
-                                     nn.Linear(512, 256),
-                                     nn.ReLU(),
-                                     nn.Linear(256, 128),
-                                     nn.ReLU(),
-                                     nn.Linear(128, 1))
+        self._critic = nn.Sequential(nn.Linear(action_space_n + 128, 1))
 
         self._critic[-1].weight.data.fill_(0)
         self._critic[-1].bias.data.fill_(0)
@@ -35,11 +29,9 @@ class DDPGAgent(nn.Module):
         """
         super().__init__()
         self.action_space = num_out_pol
-        self.actor = nn.Sequential(nn.Linear(num_in_pol, 128),
+        self.actor = nn.Sequential(nn.Linear(num_in_pol, 32),
                                    nn.ReLU(),
-                                   nn.Linear(128, 64),
-                                   nn.ReLU(),
-                                   nn.Linear(64, num_out_pol))
+                                   nn.Linear(16, num_out_pol))
 
         self.critic = DDPGCritic(comb_obs_space, comb_action_space)
 

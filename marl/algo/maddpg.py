@@ -157,7 +157,7 @@ class MADDPG(_Base):
             step = 0
             ep_reward = [0 for _ in range(self.model.n_agents)]
             while not terminal:
-                #self.env.render()
+                # self.env.render()
 
                 torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
                 action_n = self.__select_action(self.model, torch_obs_n, explore=True)
@@ -165,7 +165,7 @@ class MADDPG(_Base):
                 # print(action_n)
                 next_obs_n, reward_n, done_n, info = self.env.step(action_n)
                 terminal = all(done_n) or step >= self.episode_max_steps
-
+                done_n = [terminal for _ in range(self.env.n_agents)]
                 loss = self.__update(obs_n, action_n, next_obs_n, reward_n, done_n)
 
                 obs_n = next_obs_n
@@ -217,11 +217,25 @@ class MADDPG(_Base):
                         ep_reward[i] += r_n
                 test_rewards.append(ep_reward)
 
-        test_rewards = np.array(test_rewards).mean(axis=0)
-        if log:
-            # log - test
-            for i, r_n in enumerate(test_rewards):
-                self.writer.add_scalar('agent_{}/eval_reward'.format(i), r_n, self.__update_iter)
-            self.writer.add_scalar('_overall/eval_reward', sum(test_rewards), self.__update_iter)
+            test_rewards = np.array(test_rewards).mean(axis=0)
+            if log:
+                # log - test
+                for i, r_n in enumerate(test_rewards):
+                    self.writer.add_scalar('agent_{}/eval_reward'.format(i), r_n, self.__update_iter)
+                self.writer.add_scalar('_overall/eval_reward', sum(test_rewards), self.__update_iter)
+
+                eval_obs = [[1, (2 + 1) / 8, 1, (5 + 1) / 8],
+                            [1, (2 + 1) / 8, 0.5, (0 + 1) / 8],
+                            [0.5, (2 + 1) / 8, 1, (5 + 1) / 8],
+                            [1, (2 + 1) / 8, 0.5, (5 + 1) / 8]]
+
+                for o_i, _obs in enumerate(eval_obs):
+                    _obs = torch.Tensor(_obs).unsqueeze(0).to(self.device)
+                    for agent_i in range(self.model.n_agents):
+                        q = self.model.agent(agent_i).actor(_obs)
+                        q = q.squeeze(0).cpu().numpy().tolist()
+                        for i, x in enumerate(q):
+                            self.writer.add_scalar('_agent_{}_pos_{}/action_{}'.format(agent_i, eval_obs[o_i], i),
+                                                   x, self.__update_iter)
 
         return test_rewards

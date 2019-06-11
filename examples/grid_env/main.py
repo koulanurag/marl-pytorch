@@ -78,7 +78,7 @@ if __name__ == '__main__':
             algo.train(test_interval=50)
         if args.test:
             algo.restore()
-            test_score = algo.test(episodes=1, render=True, log=False)
+            test_score = algo.test(episodes=10, render=True, log=False)
             print(test_score)
     finally:
         algo.close()
