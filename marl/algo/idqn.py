@@ -191,18 +191,18 @@ class IDQN(_Base):
                     self.writer.add_scalar('agent_{}/eval_reward'.format(i), r_n, self.__update_iter)
                 self.writer.add_scalar('_overall/eval_reward', sum(test_rewards), self.__update_iter)
 
-                eval_obs = [[1, (2 + 1) / 8, 1, (5 + 1) / 8],
-                            [1, (2 + 1) / 8, 0.5, (0 + 1) / 8],
-                            [0.5, (2 + 1) / 8, 1, (5 + 1) / 8],
-                            [1, (2 + 1) / 8, 0.5, (5 + 1) / 8]]
-
-                for o_i, _obs in enumerate(eval_obs):
-                    _obs = torch.Tensor(_obs).unsqueeze(0).to(self.device)
-                    for agent_i in range(self.model.n_agents):
-                        q = self.model.agent(agent_i)(_obs)
-                        q = q.squeeze(0).cpu().numpy().tolist()
-                        for i, x in enumerate(q):
-                            self.writer.add_scalar('_agent_{}_pos_{}/action_{}'.format(agent_i, eval_obs[o_i], i),
-                                                   x, self.__update_iter)
+                # eval_obs = [[1, (2 + 1) / 8, 1, (5 + 1) / 8],
+                #             [1, (2 + 1) / 8, 0.5, (0 + 1) / 8],
+                #             [0.5, (2 + 1) / 8, 1, (5 + 1) / 8],
+                #             [1, (2 + 1) / 8, 0.5, (5 + 1) / 8]]
+                #
+                # for o_i, _obs in enumerate(eval_obs):
+                #     _obs = torch.Tensor(_obs).unsqueeze(0).to(self.device)
+                #     for agent_i in range(self.model.n_agents):
+                #         q = self.model.agent(agent_i)(_obs)
+                #         q = q.squeeze(0).cpu().numpy().tolist()
+                #         for i, x in enumerate(q):
+                #             self.writer.add_scalar('_agent_{}_pos_{}/action_{}'.format(agent_i, eval_obs[o_i], i),
+                #                                    x, self.__update_iter)
 
         return test_rewards
