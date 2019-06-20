@@ -71,6 +71,14 @@ if __name__ == '__main__':
         algo = IDQN(env_fn, iqnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
                     device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
                     train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
+    elif args.algo == 'sic':
+        from marl.algo.communicate import SIC
+        from .networks import SICNet
+
+        sicnet_fn = lambda: SICNet(obs_n, action_space_n)
+        algo = SIC(env_fn, sicnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
+                   device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
+                   train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
 
     # The real game begins!! Broom, Broom, Broommmm!!
     try:

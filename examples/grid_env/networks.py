@@ -92,3 +92,34 @@ class VDNet(nn.Module):
 class IDQNet(VDNet):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+
+class CommAgent(nn.Module):
+    def __init__(self, obs_space, action_space):
+        super().__init__()
+
+        self.action_space = action_space
+        self._thought = nn.Sequential(nn.Linear(obs_space, 32), nn.Tanh())
+        self._critic = nn.Sequential(nn.Linear(32, action_space))
+
+        self._critic[-1].weight.data.fill_(0)
+        self._critic[-1].bias.data.fill_(0)
+
+    def get_message(self, obs):
+        return self._thought(obs)
+
+    def forward(self, thought, global_thought):
+        return self._critic(thought, global_thought)
+
+
+class SICNet(nn.Module):
+    def __init__(self, obs_space_n, action_space_n):
+        super().__init__()
+
+        self.n_agents = len(obs_space_n)
+        for i in range(self.n_agents):
+            agent_i = 'agent_{}'.format(i)
+            setattr(self, agent_i, CommAgent(len(obs_space_n[i]), action_space_n[i].n))
+
+    def agent(self, i):
+        return getattr(self, 'agent_{}'.format(i))
