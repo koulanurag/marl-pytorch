@@ -11,7 +11,8 @@ import numpy as np
 
 
 class SIC(_Base):
-    """Value Decomposition Network + Double DQN + Prioritized Replay + Soft Target Updates"""
+    """ Value Based Methjod , Sharing Thoughts( state info + action intention) of each agent
+        + Double DQN + Prioritized Replay + Soft Target Updates"""
 
     def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, train_episodes,
                  episode_max_steps, path, run_i=1):
@@ -51,42 +52,71 @@ class SIC(_Base):
         non_final_mask = 1 - torch.ByteTensor(list(batch.done)).to(self.device)
 
         # calc loss
-        overall_pred_q, target_q = 0, 0
-        for i in range(self.model.n_agents):
-            q_val_i = self.model.agent(i)(obs_batch[:, i])
-            overall_pred_q += q_val_i.gather(1, action_batch[:, i, :].long())
+        prios = 0
+        overall_loss = 0
 
-            target_next_obs_q = torch.zeros(overall_pred_q.shape).to(self.device)
-            non_final_next_obs_batch = next_obs_batch[:, i][non_final_mask[:, i]]
+        obs_thoughts_batch, next_obs_thoughts_batch = None, None
+        for i in range(self.model.n_agents):
+            obs_thought = self.model.agent(i).get_message(obs_batch[:, i]).unsqueeze(1)
+            next_obs_thought = self.model.agent(i).get_message(next_obs_batch[:, i]).unsqueeze(1)
+            if i == 0:
+                obs_thoughts_batch, next_obs_thoughts_batch = obs_thought, next_obs_thought
+            else:
+                obs_thoughts_batch = torch.cat((obs_thoughts_batch, obs_thought), dim=1)
+                next_obs_thoughts_batch = torch.cat((next_obs_thoughts_batch, next_obs_thought), dim=1)
+
+        for i in range(self.model.n_agents):
+
+            if 0 < i < (self.model.n_agents - 1):
+                obs_global_thoughts = torch.cat(obs_thoughts_batch[:, :i, :], obs_thoughts_batch[:, i + 1:, :])
+                next_obs_global_thoughts = torch.cat(next_obs_thoughts_batch[:, :i, :],
+                                                     next_obs_thoughts_batch[:, i + 1:, :])
+            elif i == 0:
+                obs_global_thoughts = obs_thoughts_batch[:, i + 1:, :]
+                next_obs_global_thoughts = next_obs_thoughts_batch[:, i + 1:, :]
+            else:
+                obs_global_thoughts = obs_thoughts_batch[:, :i, :]
+                next_obs_global_thoughts = next_obs_thoughts_batch[:, :i, :]
+
+            q_val_i = self.model.agent(i)(obs_thoughts_batch[:, i, :], obs_global_thoughts)
+            pred_q = q_val_i.gather(1, action_batch[:, i].unsqueeze(1).long())
+
+            target_next_obs_q = torch.zeros(pred_q.shape).to(self.device)
+            non_final_next_obs_thoughts = next_obs_thoughts_batch[:, i][non_final_mask]
+            non_final_global_thoughts = next_obs_global_thoughts[non_final_mask]
 
             # Double DQN update
-            if not (non_final_next_obs_batch.shape[0] == 0):
-                _max_actions = self.model.agent(i)(non_final_next_obs_batch).max(1, keepdim=True)[1].detach()
-                _max_q = self.target_model.agent(i)(non_final_next_obs_batch).gather(1, _max_actions)
-                target_next_obs_q[non_final_mask[:, i]] = _max_q
+            target_q = 0
+            if not (non_final_next_obs_thoughts.shape[0] == 0):
+                _max_actions = self.model.agent(i)(non_final_next_obs_thoughts, non_final_global_thoughts)
+                _max_actions = _max_actions.max(1, keepdim=True)[1].detach()
 
-                target_q += target_next_obs_q.detach()
+                _max_q = self.target_model.agent(i)(non_final_next_obs_thoughts, non_final_global_thoughts)
+                _max_q = _max_q.gather(1, _max_actions)
 
-        target_q = (self.discount * target_q) + reward_batch.sum(dim=1, keepdim=True)
-        loss = (overall_pred_q - target_q).pow(2) * weights.unsqueeze(1)
-        prios = loss + 1e-5
-        loss = loss.mean()
+                target_next_obs_q[non_final_mask] = _max_q
+
+                target_q = target_next_obs_q.detach()
+
+            target_q = (self.discount * target_q) + reward_batch.sum(dim=1, keepdim=True)
+            loss = (pred_q - target_q).pow(2) * weights.unsqueeze(1)
+            prios += loss + 1e-5
+            loss = loss.mean()
+            overall_loss += loss
+            self.writer.add_scalar('agent_{}/critic_loss'.format(i), loss.item(), self.__update_iter)
 
         # Optimize the model
         self.optimizer.zero_grad()
-        loss.backward()
+        overall_loss.backward()
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
         self.memory.update_priorities(indices, prios.data.cpu().numpy())
         self.optimizer.step()
 
         # update target network
-        # Todo: Make 100 as a parameter
-        # if self.__update_iter % 100:
-        #     hard_update(self.target_model, self.model)
         soft_update(self.target_model, self.model, self.tau)
 
         # log
-        self.writer.add_scalar('_overall/critic_loss', loss, self.__update_iter)
+        self.writer.add_scalar('_overall/critic_loss', overall_loss, self.__update_iter)
         self.writer.add_scalar('_overall/beta', beta, self.__update_iter)
 
         # just keep track of update counts
@@ -95,7 +125,7 @@ class SIC(_Base):
         # resuming the model in eval mode
         self.model.eval()
 
-        return loss.item()
+        return overall_loss.item()
 
     def __select_action(self, model, obs_n, explore=False):
         """ selects epsilon greedy action for the state """
@@ -104,10 +134,14 @@ class SIC(_Base):
         else:
             act_n, _thoughts = [], []
             for i in range(model.n_agents):
-                _thoughts.append(model.agent(i).get_message(obs_n[i]))
+                _th = model.agent(i).get_message(obs_n[:, i])
+                _thoughts.append(_th)
 
+            _thoughts = torch.cat(_thoughts)
             for i in range(model.n_agents):
-                _q_vals = model.agent(i)(_thoughts[i], _thoughts[:i] + _thoughts[i:])
+                _neighbours = list(range(model.n_agents))
+                _neighbours.remove(i)
+                _q_vals = model.agent(i)(_thoughts[i].unsqueeze(0), _thoughts[_neighbours, :].unsqueeze(0))
                 act_n.append(_q_vals.argmax(1).item())
 
         return act_n
@@ -167,7 +201,6 @@ class SIC(_Base):
 
                     torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
                     action_n = self.__select_action(self.model, torch_obs_n, explore=False)
-                    action_n = action_n.cpu().numpy().tolist()
 
                     next_obs_n, reward_n, done_n, info = self.env.step(action_n)
                     terminal = all(done_n) or step >= self.episode_max_steps

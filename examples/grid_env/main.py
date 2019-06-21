@@ -20,7 +20,7 @@ if __name__ == '__main__':
                         help="Directory Path to store results (default: %(default)s)")
     parser.add_argument('--no_cuda', action='store_true', default=False,
                         help='Enforces no cuda usage (default: %(default)s)')
-    parser.add_argument('--algo', choices=['maddpg', 'vdn', 'idqn'],
+    parser.add_argument('--algo', choices=['maddpg', 'vdn', 'idqn', 'sic'],
                         help='Training Algorithm', required=True)
     parser.add_argument('--train', action='store_true', default=False,
                         help='Trains the model')
@@ -73,7 +73,7 @@ if __name__ == '__main__':
                     train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
     elif args.algo == 'sic':
         from marl.algo.communicate import SIC
-        from .networks import SICNet
+        from networks import SICNet
 
         sicnet_fn = lambda: SICNet(obs_n, action_space_n)
         algo = SIC(env_fn, sicnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
