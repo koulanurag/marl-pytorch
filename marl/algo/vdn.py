@@ -8,7 +8,11 @@ import numpy as np
 
 
 class VDN(_Base):
-    """Value Decomposition Network + Double DQN + Prioritized Replay + Soft Target Updates"""
+    """
+    Value Decomposition Network + Double DQN + Prioritized Replay + Soft Target Updates
+
+    Paper: https://arxiv.org/pdf/1706.05296.pdf
+    """
 
     def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, train_episodes,
                  episode_max_steps, path, run_i=1):
@@ -95,20 +99,32 @@ class VDN(_Base):
         return loss.item()
 
     def __select_action(self, model, obs_n, explore=False):
-        act_n = []
+        """ selects epsilon greedy action for the state """
+        if explore and self.exploration.eps > random.random():
+            act_n = self.env.action_space.sample()
+        else:
+            act_n = []
+            for i in range(model.n_agents):
+                act_n.append(model.agent(i)(obs_n[:, i]).argmax(1).item())
 
-        for i in range(model.n_agents):
-            """ selects epsilon greedy action for the state """
-            one_hot_action = [0 for _ in range(model.agent(i).action_space)]
-            if explore and self.exploration.eps > random.random():
-                one_hot_action[random.randint(0, len(one_hot_action) - 1)] = 1
-            else:
-                one_hot_action[model.agent(i)(obs_n[:, i]).argmax(1).item()] = 1
-            # print(i, ' ', obs_n[:, i], model.agent(i)(obs_n[:, i]), one_hot_action)
-            act_n.append(one_hot_action)
+        return act_n
 
-        # return torch.cat(act_n, dim=1)
-        return torch.Tensor(act_n)
+    # def __select_action(self, model, obs_n, explore=False):
+    #     act_n = []
+    #
+    #     for i in range(model.n_agents):
+    #         """ selects epsilon greedy action for the state """
+    #
+    #         one_hot_action = [0 for _ in range(model.agent(i).action_space)]
+    #         if explore and self.exploration.eps > random.random():
+    #             one_hot_action[random.randint(0, len(one_hot_action) - 1)] = 1
+    #         else:
+    #             one_hot_action[model.agent(i)(obs_n[:, i]).argmax(1).item()] = 1
+    #         # print(i, ' ', obs_n[:, i], model.agent(i)(obs_n[:, i]), one_hot_action)
+    #         act_n.append(one_hot_action)
+    #
+    #     # return torch.cat(act_n, dim=1)
+    #     return torch.Tensor(act_n)
 
     def _train(self, episodes):
         self.model.eval()
@@ -125,13 +141,11 @@ class VDN(_Base):
 
                 torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
                 action_n = self.__select_action(self.model, torch_obs_n, explore=True)
-                action_n = action_n.cpu().detach().numpy().tolist()
 
                 next_obs_n, reward_n, done_n, info = self.env.step(action_n)
                 terminal = all(done_n) or step >= self.episode_max_steps
-                action_n = [[_.index(1)] for _ in action_n]
-                done_n = [terminal for _ in range(self.env.n_agents)]
-                loss = self.__update(obs_n, action_n, next_obs_n, reward_n, done_n)
+
+                loss = self.__update(obs_n, action_n, next_obs_n, reward_n, terminal)
 
                 obs_n = next_obs_n
                 step += 1
