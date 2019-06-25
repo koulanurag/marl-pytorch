@@ -60,13 +60,6 @@ class VDAgent(nn.Module):
 
         self.action_space = action_space
 
-        # self._critic = nn.Sequential(
-        #     nn.Linear(obs_space, 128),
-        #     nn.ReLU(),
-        #     nn.Linear(128, 64),
-        #     nn.ReLU(),
-        #     nn.Linear(64, action_space))
-
         self._critic = nn.Sequential(nn.Linear(obs_space, action_space))
 
         self._critic[-1].weight.data.fill_(0)

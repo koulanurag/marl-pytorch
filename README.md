@@ -6,6 +6,8 @@ Implementations of multi agent reinforcement learning algorithms in pytorch
 * VDN : Value Decomposition Network
 * MADDPG : Multi Agent Deep Deterministic Policy Gradient
 * IDQN : Independent Q Learning
+
+
 ## Installation
 
 ```bash

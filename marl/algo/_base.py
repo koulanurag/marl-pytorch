@@ -10,7 +10,18 @@ class _Base:
     def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path,
                  run_i):
         """
-        :param env: instance of the environment
+
+        Args:
+            env_fn:
+            model_fn:
+            lr:
+            discount:
+            batch_size:
+            device:
+            train_episodes:
+            episode_max_steps:
+            path:
+            run_i:
         """
         self.env_fn = env_fn
         self.env = env_fn()
@@ -30,10 +41,7 @@ class _Base:
         self.path = os.path.join(path, self.__class__.__name__, 'runs', 'run_{}'.format(run_i))
         self.best_model_path = os.path.join(self.path, 'model.p')
         self.last_model_path = os.path.join(self.path, 'last_model.p')
-
-    def act(self, state, debug=False):
-        """ returns greedy action for the state"""
-        raise NotImplementedError
+        self.writer = None
 
     def save(self, path):
         """ save relevant properties in given path"""
@@ -48,7 +56,15 @@ class _Base:
         print('saved')
 
     def close(self):
+        """ It should be called after one is done with the usage"""
         self.env.close()
+
+    def _select_action(self, model, obs_n, explore=False):
+        """ selects epsilon greedy action for the state """
+        raise NotImplementedError
+
+    def _train(self, test_interval):
+        raise NotImplementedError
 
     def train(self, test_interval=50):
         self.writer = SummaryWriter(self.path, flush_secs=10)
@@ -77,3 +93,37 @@ class _Base:
         # keeping a copy of last trained model
         self.save(self.last_model_path)
         self.__writer_close()
+
+    def test(self, episodes, render=False, log=False):
+        self.model.eval()
+        with torch.no_grad():
+            test_rewards = []
+            for ep in range(episodes):
+                terminal = False
+                obs_n = self.env.reset()
+                step = 0
+                ep_reward = [0 for _ in range(self.model.n_agents)]
+                while not terminal:
+                    if render:
+                        self.env.render()
+
+                    torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
+                    action_n = self._select_action(self.model, torch_obs_n, explore=False)
+
+                    next_obs_n, reward_n, done_n, info = self.env.step(action_n)
+                    terminal = all(done_n) or step >= self.episode_max_steps
+
+                    obs_n = next_obs_n
+                    step += 1
+                    for i, r_n in enumerate(reward_n):
+                        ep_reward[i] += r_n
+                test_rewards.append(ep_reward)
+
+            test_rewards = np.array(test_rewards).mean(axis=0)
+            if log:
+                # log - test
+                for i, r_n in enumerate(test_rewards):
+                    self.writer.add_scalar('agent_{}/eval_reward'.format(i), r_n, self._update_iter)
+                self.writer.add_scalar('_overall/eval_reward', sum(test_rewards), self._update_iter)
+
+        return test_rewards

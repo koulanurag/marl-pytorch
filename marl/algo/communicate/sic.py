@@ -16,6 +16,22 @@ class SIC(_Base):
 
     def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, train_episodes,
                  episode_max_steps, path, run_i=1):
+        """
+
+        Args:
+            env_fn: callback function returning instance of the environment
+            model_fn: callback function returning instance of the model
+            lr: learning rate
+            discount: discount factor ( aka gamma)
+            batch_size: Batch Size for training
+            device: device to load data( gpu or cpu) during training
+            mem_len: Size of Memory Buffer
+            tau:
+            train_episodes: No. of episodes for training
+            episode_max_steps: Max. number of steps to be executed in the environment
+            path: Path to store results
+            run_i: Running index for logging
+        """
         super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path,
                          run_i=run_i)
         self.memory = PrioritizedReplayMemory(mem_len)

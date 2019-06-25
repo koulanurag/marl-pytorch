@@ -8,11 +8,17 @@ import numpy as np
 
 
 class IDQN(_Base):
-    """Independent DQN + Double DQN + Prioritized Replay + Soft Target Updates"""
+    """
+    Independent DQN + Double DQN + Prioritized Replay + Soft Target Updates
+
+    Paper: Multi agent reinforcement learning independent vs cooperative agents
+    Url: http://web.media.mit.edu/~cynthiab/Readings/tan-MAS-reinfLearn.pdf
+    """
 
     def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, train_episodes,
-                 episode_max_steps, path,run_i=1):
-        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path,run_i=run_i)
+                 episode_max_steps, path, run_i=1):
+        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path,
+                         run_i=run_i)
         self.memory = PrioritizedReplayMemory(mem_len)
         self.tau = tau
 
@@ -94,7 +100,7 @@ class IDQN(_Base):
 
         return loss.item()
 
-    def __select_action(self, model, obs_n, explore=False):
+    def _select_action(self, model, obs_n, explore=False):
         act_n = []
 
         for i in range(model.n_agents):
@@ -152,57 +158,3 @@ class IDQN(_Base):
             print(ep, sum(ep_reward))
 
         return np.array(train_rewards).mean(axis=0), (np.mean(train_loss) if len(train_loss) > 0 else [])
-
-    def test(self, episodes, render=False, log=False):
-        self.model.eval()
-        with torch.no_grad():
-            test_rewards = []
-            for ep in range(episodes):
-                terminal = False
-                obs_n = self.env.reset()
-                step = 0
-
-                ep_reward = [0 for _ in range(self.model.n_agents)]
-                while not terminal:
-                    if render:
-                        self.env.render()
-
-                    torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
-                    action_n = self.__select_action(self.model, torch_obs_n, explore=False)
-                    action_n = action_n.cpu().numpy().tolist()
-
-                    # input_action = [int(x) for x in input('enter:')]
-                    # action_n = np.zeros(np.array(action_n).shape).tolist()
-                    # for i, a in enumerate(input_action):
-                    #     action_n[i][a] = 1
-                    next_obs_n, reward_n, done_n, info = self.env.step(action_n)
-                    terminal = all(done_n) or step >= self.episode_max_steps
-
-                    obs_n = next_obs_n
-                    step += 1
-                    for i, r_n in enumerate(reward_n):
-                        ep_reward[i] += r_n
-                test_rewards.append(ep_reward)
-
-            test_rewards = np.array(test_rewards).mean(axis=0)
-            if log:
-                # log - test
-                for i, r_n in enumerate(test_rewards):
-                    self.writer.add_scalar('agent_{}/eval_reward'.format(i), r_n, self.__update_iter)
-                self.writer.add_scalar('_overall/eval_reward', sum(test_rewards), self.__update_iter)
-
-                # eval_obs = [[1, (2 + 1) / 8, 1, (5 + 1) / 8],
-                #             [1, (2 + 1) / 8, 0.5, (0 + 1) / 8],
-                #             [0.5, (2 + 1) / 8, 1, (5 + 1) / 8],
-                #             [1, (2 + 1) / 8, 0.5, (5 + 1) / 8]]
-                #
-                # for o_i, _obs in enumerate(eval_obs):
-                #     _obs = torch.Tensor(_obs).unsqueeze(0).to(self.device)
-                #     for agent_i in range(self.model.n_agents):
-                #         q = self.model.agent(agent_i)(_obs)
-                #         q = q.squeeze(0).cpu().numpy().tolist()
-                #         for i, x in enumerate(q):
-                #             self.writer.add_scalar('_agent_{}_pos_{}/action_{}'.format(agent_i, eval_obs[o_i], i),
-                #                                    x, self.__update_iter)
-
-        return test_rewards
