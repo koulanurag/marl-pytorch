@@ -20,7 +20,7 @@ if __name__ == '__main__':
                         help="Directory Path to store results (default: %(default)s)")
     parser.add_argument('--no_cuda', action='store_true', default=False,
                         help='Enforces no cuda usage (default: %(default)s)')
-    parser.add_argument('--algo', choices=['maddpg', 'vdn', 'idqn', 'sic'],
+    parser.add_argument('--algo', choices=['maddpg', 'vdn', 'idqn', 'sic','acc'],
                         help='Training Algorithm', required=True)
     parser.add_argument('--train', action='store_true', default=False,
                         help='Trains the model')
@@ -77,6 +77,14 @@ if __name__ == '__main__':
 
         sicnet_fn = lambda: SICNet(obs_n, action_space_n)
         algo = SIC(env_fn, sicnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
+                   device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
+                   train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
+    elif args.algo == 'acc':
+        from marl.algo.communicate import ACC
+        from networks import ACCNet
+
+        accnet_fn = lambda: ACCNet(obs_n, action_space_n)
+        algo = ACC(env_fn, accnet_fn, lr=args.lr, discount=args.discount, batch_size=1,
                    device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
                    train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
 
