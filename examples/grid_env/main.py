@@ -20,7 +20,7 @@ if __name__ == '__main__':
                         help="Directory Path to store results (default: %(default)s)")
     parser.add_argument('--no_cuda', action='store_true', default=False,
                         help='Enforces no cuda usage (default: %(default)s)')
-    parser.add_argument('--algo', choices=['maddpg', 'vdn', 'idqn', 'sic','acc'],
+    parser.add_argument('--algo', choices=['maddpg', 'vdn', 'idqn', 'sic', 'acc','achac'],
                         help='Training Algorithm', required=True)
     parser.add_argument('--train', action='store_true', default=False,
                         help='Trains the model')
@@ -87,6 +87,14 @@ if __name__ == '__main__':
         algo = ACC(env_fn, accnet_fn, lr=args.lr, discount=args.discount, batch_size=1,
                    device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
                    train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
+    elif args.algo == 'achac':
+        from marl.algo.communicate import ACHAC
+        from networks import ACHACNet
+
+        net_fn = lambda: ACHACNet(obs_n, action_space_n)
+        algo = ACHAC(env_fn, net_fn, lr=args.lr, discount=args.discount, batch_size=1,
+                     device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
+                     train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
 
     # The real game begins!! Broom, Broom, Broommmm!!
     try:

@@ -9,12 +9,12 @@ import numpy as np
 import torch.nn.functional as F
 
 
-class ACC(_Base):
+class ACHAC(_Base):
 
     def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, train_episodes,
                  episode_max_steps, path, run_i=1):
         """
-        Actor Critic With Communication of hidden state
+        Actor Critic With Communication of hidden state and Action
 
         Args:
             env_fn: callback function returning instance of the environment
@@ -115,7 +115,7 @@ class ACC(_Base):
                     _neighbours = list(range(self.model.n_agents))
                     _neighbours.remove(agent_i)
 
-                    logits, critic = self.model.agent(agent_i)(thoughts[_neighbours])
+                    logits = self.model.agent(agent_i)(thoughts[_neighbours])
                     prob = F.softmax(logits, dim=1)
                     log_prob = F.log_softmax(logits, dim=1)
                     entropy = -(log_prob * prob).sum(1)
@@ -125,8 +125,15 @@ class ACC(_Base):
                     action_n.append(action.item())
 
                     log_probs.append(log_prob)
-                    critic_info.append(critic)
                     entropies.append(entropy)
+
+                for agent_i in range(self.model.n_agents):
+                    # assuming every other agent is a neighbour as of now
+                    _neighbours = list(range(self.model.n_agents))
+                    _neighbours.remove(agent_i)
+
+                    critic = self.model.agent(agent_i).critic(thoughts[_neighbours], torch.Tensor(action_n))
+                    critic_info.append(critic)
 
                 next_obs_n, reward_n, done_n, info = self.env.step(action_n)
                 terminal = all(done_n) or step >= self.episode_max_steps
@@ -190,7 +197,7 @@ class ACC(_Base):
                         _neighbours = list(range(self.model.n_agents))
                         _neighbours.remove(agent_i)
 
-                        logits, critic = self.model.agent(agent_i)(thoughts[_neighbours])
+                        logits = self.model.agent(agent_i)(thoughts[_neighbours])
                         prob = F.softmax(logits, dim=1)
                         action = prob.argmax(1).item()
 

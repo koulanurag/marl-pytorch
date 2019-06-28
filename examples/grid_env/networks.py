@@ -121,7 +121,7 @@ class SICNet(nn.Module):
 class ACCAgent(nn.Module):
     def __init__(self, obs_space, n_agents, action_space):
         super().__init__()
-
+        self.neighbours_n = n_agents - 1
         self.action_space = action_space
         self.hidden_size = 32
 
@@ -156,7 +156,12 @@ class ACCAgent(nn.Module):
         return self.hx
 
     def forward(self, neighbours_hx):
-        x = torch.cat((self.hx, neighbours_hx.squeeze(0)), dim=1)
+        assert len(neighbours_hx) == self.neighbours_n
+
+        if self.neighbours_n >= 1:
+            x = torch.cat((self.hx, neighbours_hx.squeeze(0)), dim=1)
+        else:
+            x = self.hx
         return self.pi(x), self.critic(x)
 
 
@@ -168,6 +173,85 @@ class ACCNet(nn.Module):
         for i in range(self.n_agents):
             agent_i = 'agent_{}'.format(i)
             setattr(self, agent_i, ACCAgent(len(obs_space_n[i]), self.n_agents, action_space_n[i].n))
+
+    def agent(self, i):
+        return getattr(self, 'agent_{}'.format(i))
+
+    def init_hidden(self):
+        for i in range(self.n_agents):
+            getattr(self, 'agent_{}'.format(i)).init_hidden()
+
+    def hidden_detach(self):
+        for i in range(self.n_agents):
+            getattr(self, 'agent_{}'.format(i)).hidden_detach()
+
+
+# *********************************************************************
+
+# *********************************************************************
+class ACHACAgent(nn.Module):
+    def __init__(self, obs_space, n_agents, action_space):
+        super().__init__()
+        self.neighbours_n = n_agents - 1
+        self.action_space = action_space
+        self.hidden_size = 32
+
+        self.x_layer = nn.Sequential(nn.Linear(obs_space, 64),
+                                     nn.ReLU(),
+                                     nn.Linear(64, 32),
+                                     nn.ReLU())
+
+        self.lstm = nn.LSTMCell(32, self.hidden_size)
+
+        self._critic = nn.Sequential(nn.Linear(self.hidden_size * n_agents + n_agents, 1))
+        self.pi = nn.Sequential(nn.Linear(self.hidden_size * n_agents, action_space, bias=False))
+
+        self._critic[-1].weight.data.fill_(0)
+        self._critic[-1].bias.data.fill_(0)
+        self.lstm.bias_ih.data.fill_(0)
+        self.lstm.bias_hh.data.fill_(0)
+
+        self.hx, self.cx = None, None
+
+    def init_hidden(self, batch_size=1):
+        self.hx = torch.zeros(batch_size, self.hidden_size)
+        self.cx = torch.zeros(batch_size, self.hidden_size)
+
+    def hidden_detach(self):
+        self.hx = self.hx.detach()
+        self.cx = self.cx.detach()
+
+    def get_thought(self, input):
+        x = self.x_layer(input)
+        self.hx, self.cx = self.lstm(x, (self.hx, self.cx))
+        return self.hx
+
+    def forward(self, neighbours_hx):
+        assert len(neighbours_hx) == self.neighbours_n
+
+        if self.neighbours_n >= 1:
+            x = torch.cat((self.hx, neighbours_hx.squeeze(0)), dim=1)
+        else:
+            x = self.hx
+        return self.pi(x)
+
+    def critic(self, neighbours_hx, neighbours_action):
+        if self.neighbours_n >= 1:
+            x = torch.cat((self.hx, neighbours_hx.squeeze(0)), dim=1)
+            x = torch.cat((x, neighbours_action.unsqueeze(0)), dim=1)
+        else:
+            x = self.hx
+        return self._critic(x)
+
+
+class ACHACNet(nn.Module):
+    def __init__(self, obs_space_n, action_space_n):
+        super().__init__()
+
+        self.n_agents = len(obs_space_n)
+        for i in range(self.n_agents):
+            agent_i = 'agent_{}'.format(i)
+            setattr(self, agent_i, ACHACAgent(len(obs_space_n[i]), self.n_agents, action_space_n[i].n))
 
     def agent(self, i):
         return getattr(self, 'agent_{}'.format(i))
