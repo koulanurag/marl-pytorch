@@ -37,7 +37,7 @@ class ACHAC(_Base):
         self.__episode_iter = 0
         self.entropy_coef = 0.01
         self.critic_loss_coef = 0.5
-        self.truncate_n = 1
+        self.truncate_n = None
         self._step_iter = 0
         self.gae_lambda = 1
 
@@ -100,6 +100,7 @@ class ACHAC(_Base):
 
             self.model.init_hidden()
             while not terminal:
+                # self.env.render()
                 ep_obs.append(obs_n)
                 torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
 
@@ -132,7 +133,8 @@ class ACHAC(_Base):
                     _neighbours = list(range(self.model.n_agents))
                     _neighbours.remove(agent_i)
 
-                    critic = self.model.agent(agent_i).critic(thoughts[_neighbours], torch.Tensor(action_n))
+                    critic = self.model.agent(agent_i).critic(thoughts[_neighbours],
+                                                              torch.Tensor(action_n)[_neighbours])
                     critic_info.append(critic)
 
                 next_obs_n, reward_n, done_n, info = self.env.step(action_n)

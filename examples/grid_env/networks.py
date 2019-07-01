@@ -203,7 +203,7 @@ class ACHACAgent(nn.Module):
 
         self.lstm = nn.LSTMCell(32, self.hidden_size)
 
-        self._critic = nn.Sequential(nn.Linear(self.hidden_size * n_agents + n_agents, 1))
+        self._critic = nn.Sequential(nn.Linear(self.hidden_size * n_agents + self.neighbours_n, 1))
         self.pi = nn.Sequential(nn.Linear(self.hidden_size * n_agents, action_space, bias=False))
 
         self._critic[-1].weight.data.fill_(0)
