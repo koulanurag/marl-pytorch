@@ -129,7 +129,7 @@ class IDQN(_Base):
                 # self.env.render()
 
                 torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
-                action_n = self.__select_action(self.model, torch_obs_n, explore=True)
+                action_n = self._select_action(self.model, torch_obs_n, explore=True)
                 action_n = action_n.cpu().detach().numpy().tolist()
 
                 next_obs_n, reward_n, done_n, info = self.env.step(action_n)
