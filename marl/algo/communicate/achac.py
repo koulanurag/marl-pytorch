@@ -201,7 +201,9 @@ class ACHAC(_Base):
 
                         logits = self.model.agent(agent_i)(thoughts[_neighbours])
                         prob = F.softmax(logits, dim=1)
-                        action = prob.argmax(1).item()
+                        # action = prob.argmax(1).item()
+                        action = prob.multinomial(num_samples=1).detach()
+
 
                         if log and step == 0 and ep == 0:
                             log_prob = F.log_softmax(logits, dim=1)
