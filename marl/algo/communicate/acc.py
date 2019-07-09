@@ -12,7 +12,7 @@ import torch.nn.functional as F
 class ACC(_Base):
 
     def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, train_episodes,
-                 episode_max_steps, path, run_i=1):
+                 episode_max_steps, path):
         """
         Actor Critic With Communication of hidden state
 
@@ -28,10 +28,9 @@ class ACC(_Base):
             train_episodes: No. of episodes for training
             episode_max_steps: Max. number of steps to be executed in the environment
             path: Path to store results
-            run_i: Running index for logging
+            log_suffix: Running index for logging
         """
-        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path,
-                         run_i=run_i)
+        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path)
         self.tau = tau
         self.__update_iter = 0
         self.__episode_iter = 0

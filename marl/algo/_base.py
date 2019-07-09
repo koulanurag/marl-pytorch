@@ -3,12 +3,10 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 
-
 class _Base:
     """ Base Class for  Multi Agent Algorithms"""
 
-    def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path,
-                 run_i):
+    def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path):
         """
 
         Args:
@@ -21,11 +19,11 @@ class _Base:
             train_episodes:
             episode_max_steps:
             path:
-            run_i:
+            log_suffix:
         """
         self.env_fn = env_fn
         self.env = env_fn()
-        self.env.seed(run_i)
+        self.env.seed(0)  # Todo: Add seed to attributes
         self.train_episodes = train_episodes
         self.episode_max_steps = episode_max_steps
 
@@ -38,7 +36,7 @@ class _Base:
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
         # logging + visualization
-        self.path = os.path.join(path, self.__class__.__name__, 'runs', 'run_{}'.format(run_i))
+        self.path = path
         self.best_model_path = os.path.join(self.path, 'model.p')
         self.last_model_path = os.path.join(self.path, 'last_model.p')
         self.writer = None
@@ -47,8 +45,16 @@ class _Base:
         """ save relevant properties in given path"""
         torch.save(self.model.state_dict(), path)
 
-    def restore(self):
-        self.model.load_state_dict(torch.load(self.best_model_path))
+    def restore(self, path=None):
+        """
+        Restores the model from the given path
+
+        Args:
+            path (optional) : model path
+
+        """
+        path = self.best_model_path if path is None else path
+        self.model.load_state_dict(torch.load(path))
 
     def __writer_close(self):
         self.writer.export_scalars_to_json(os.path.join(self.path, 'summary.json'))

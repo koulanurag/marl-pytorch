@@ -13,9 +13,9 @@ from torch.nn import MSELoss
 
 class MADDPG(_Base):
     def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, train_episodes,
-                 episode_max_steps, discrete_action_space, path,run_i=1):
+                 episode_max_steps, discrete_action_space, path):
         """ Todo: Write note about usage or if anything specific is required to run"""
-        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path,run_i=run_i)
+        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path)
         self.memory = ReplayMemory(mem_len)
         # self.memory = PrioritizedReplayMemory(mem_len)
         self.tau = tau

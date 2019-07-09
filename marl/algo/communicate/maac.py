@@ -13,7 +13,6 @@ from torch.nn import MSELoss
 
 class MAAC(_Base):
     def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, train_episodes,
-                 episode_max_steps, discrete_action_space, path, run_i=1):
-        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path,
-                         run_i=run_i)
+                 episode_max_steps, discrete_action_space, path):
+        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path)
         pass

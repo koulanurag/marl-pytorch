@@ -15,7 +15,7 @@ class SIC(_Base):
         + Double DQN + Prioritized Replay + Soft Target Updates"""
 
     def __init__(self, env_fn, model_fn, lr, discount, batch_size, device, mem_len, tau, train_episodes,
-                 episode_max_steps, path, run_i=1):
+                 episode_max_steps, path):
         """
 
         Args:
@@ -30,10 +30,9 @@ class SIC(_Base):
             train_episodes: No. of episodes for training
             episode_max_steps: Max. number of steps to be executed in the environment
             path: Path to store results
-            run_i: Running index for logging
+            log_suffix: Running index for logging
         """
-        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path,
-                         run_i=run_i)
+        super().__init__(env_fn, model_fn, lr, discount, batch_size, device, train_episodes, episode_max_steps, path)
         self.memory = PrioritizedReplayMemory(mem_len)
         self.tau = tau
 

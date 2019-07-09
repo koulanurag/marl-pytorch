@@ -20,7 +20,7 @@ if __name__ == '__main__':
                         help="Directory Path to store results (default: %(default)s)")
     parser.add_argument('--no_cuda', action='store_true', default=False,
                         help='Enforces no cuda usage (default: %(default)s)')
-    parser.add_argument('--algo', choices=['maddpg', 'vdn', 'idqn', 'sic', 'acc', 'achac','siha'],
+    parser.add_argument('--algo', choices=['maddpg', 'vdn', 'idqn', 'sic', 'acc', 'achac', 'siha'],
                         help='Training Algorithm', required=True)
     parser.add_argument('--train', action='store_true', default=False,
                         help='Trains the model')
@@ -32,18 +32,32 @@ if __name__ == '__main__':
                         help=' Discount rate (or Gamma) for TD error (default: %(default)s)')
     parser.add_argument('--train_episodes', type=int, default=2000,
                         help='Learning rate (default: %(default)s)')
+    parser.add_argument('--test_episodes', type=int, default=10,
+                        help='test episodes (default: %(default)s)')
     parser.add_argument('--batch_size', type=int, default=128,
                         help='Learning rate (default: %(default)s)')
     parser.add_argument('--seed', type=int, default=0,
                         help='seed (default: %(default)s)')
+    parser.add_argument('--test_interval', type=int, default=50,
+                        help='Test interval (default: %(default)s)')
     parser.add_argument('--run_i', type=int, default=1,
-                        help='run_i (default: %(default)s)')
+                        help='Run instance (default: %(default)s)')
+    parser.add_argument('--log_suffix', type=str, default='',
+                        help='log_suffix (default: %(default)s)')
+    parser.add_argument('--force', action='store_true', default=False,
+                        help='Trains the model')
 
     args = parser.parse_args()
     device = 'cuda' if ((not args.no_cuda) and torch.cuda.is_available()) else 'cpu'
     args.env_result_dir = os.path.join(args.result_dir, args.env)
-    if not os.path.exists(args.env_result_dir):
-        os.makedirs(args.env_result_dir)
+    _path = os.path.join(args.env_result_dir, args.algo.upper(), 'runs')
+    _path = os.path.join(_path, 'run_{}_{}'.format(args.run_i, args.log_suffix))
+
+    if args.train and os.path.exists(_path) and os.listdir(_path) and not args.force:
+        raise FileExistsError('{} is not empty. Please use --force to override it')
+    else:
+        if not os.path.exists(_path):
+            os.makedirs(_path)
 
     # seeding
     torch.manual_seed(args.seed)
@@ -59,59 +73,59 @@ if __name__ == '__main__':
     if args.algo == 'maddpg':
         maddpg_net = lambda: MADDPGNet(obs_n, action_space_n)
         algo = MADDPG(env_fn, maddpg_net, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
-                      device=device, mem_len=50000, tau=0.01, path=args.env_result_dir, discrete_action_space=True,
-                      train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
+                      device=device, mem_len=50000, tau=0.01, path=_path, discrete_action_space=True,
+                      train_episodes=args.train_episodes, episode_max_steps=5000, log_suffix=args.log_suffix)
     elif args.algo == 'vdn':
         vdnet_fn = lambda: VDNet(obs_n, action_space_n)
         algo = VDN(env_fn, vdnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
-                   device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
-                   train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
+                   device=device, mem_len=10000, tau=0.01, path=_path,
+                   train_episodes=args.train_episodes, episode_max_steps=5000, log_suffix=args.log_suffix)
     elif args.algo == 'idqn':
         iqnet_fn = lambda: IDQNet(obs_n, action_space_n)
         algo = IDQN(env_fn, iqnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
-                    device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
-                    train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
+                    device=device, mem_len=10000, tau=0.01, path=_path,
+                    train_episodes=args.train_episodes, episode_max_steps=5000, log_suffix=args.log_suffix)
     elif args.algo == 'sic':
         from marl.algo.communicate import SIC
         from networks import SICNet
 
         sicnet_fn = lambda: SICNet(obs_n, action_space_n)
         algo = SIC(env_fn, sicnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
-                   device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
-                   train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
+                   device=device, mem_len=10000, tau=0.01, path=_path,
+                   train_episodes=args.train_episodes, episode_max_steps=5000, log_suffix=args.log_suffix)
     elif args.algo == 'acc':
         from marl.algo.communicate import ACC
         from networks import ACCNet
 
         accnet_fn = lambda: ACCNet(obs_n, action_space_n)
-        algo = ACC(env_fn, accnet_fn, lr=args.lr, discount=args.discount, batch_size=1,
-                   device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
-                   train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
+        algo = ACC(env_fn, accnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
+                   device=device, mem_len=10000, tau=0.01, path=_path,
+                   train_episodes=args.train_episodes, episode_max_steps=5000, log_suffix=args.log_suffix)
     elif args.algo == 'achac':
         from marl.algo.communicate import ACHAC
         from networks import ACHACNet
 
         net_fn = lambda: ACHACNet(obs_n, action_space_n)
-        algo = ACHAC(env_fn, net_fn, lr=args.lr, discount=args.discount, batch_size=1,
-                     device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
-                     train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
+        algo = ACHAC(env_fn, net_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
+                     device=device, mem_len=10000, tau=0.01, path=_path,
+                     train_episodes=args.train_episodes, episode_max_steps=5000, log_suffix=args.log_suffix)
 
     elif args.algo == 'siha':
         from marl.algo.communicate import SIHA
         from networks import SIHANet
 
         net_fn = lambda: SIHANet(obs_n, action_space_n)
-        algo = SIHA(env_fn, net_fn, lr=args.lr, discount=args.discount, batch_size=2,
-                    device=device, mem_len=10000, tau=0.01, path=args.env_result_dir,
-                    train_episodes=args.train_episodes, episode_max_steps=5000, run_i=args.run_i)
+        algo = SIHA(env_fn, net_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
+                    device=device, mem_len=10000, tau=0.01, path=_path,
+                    train_episodes=args.train_episodes, episode_max_steps=5000, log_suffix=args.log_suffix)
 
     # The real game begins!! Broom, Broom, Broommmm!!
     try:
         if args.train:
-            algo.train(test_interval=50)
+            algo.train(test_interval=args.test_interval)
         if args.test:
             algo.restore()
-            test_score = algo.test(episodes=10, render=True, log=False)
+            test_score = algo.test(episodes=args.test_episodes, render=True, log=False)
             print(test_score)
     finally:
         algo.close()
