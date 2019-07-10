@@ -142,9 +142,12 @@ class ACCAgent(nn.Module):
 
         self.hx, self.cx = None, None
 
-    def init_hidden(self, batch_size=1):
+    def init_hidden(self, batch_size=1, device=None):
         self.hx = torch.zeros(batch_size, self.hidden_size)
         self.cx = torch.zeros(batch_size, self.hidden_size)
+
+        if device is not None:
+            self.hx, self.cx = self.hx.to(device), self.cx.to(device)
 
     def hidden_detach(self):
         self.hx = self.hx.detach()
@@ -177,9 +180,9 @@ class ACCNet(nn.Module):
     def agent(self, i):
         return getattr(self, 'agent_{}'.format(i))
 
-    def init_hidden(self):
+    def init_hidden(self, batch=1, device=None):
         for i in range(self.n_agents):
-            getattr(self, 'agent_{}'.format(i)).init_hidden()
+            getattr(self, 'agent_{}'.format(i)).init_hidden(batch, device)
 
     def hidden_detach(self):
         for i in range(self.n_agents):
