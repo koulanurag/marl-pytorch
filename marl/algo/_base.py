@@ -42,6 +42,7 @@ class _Base:
         self.best_model_path = os.path.join(self.path, 'model.p')
         self.last_model_path = os.path.join(self.path, 'last_model.p')
         self.writer = None
+        self._step_iter = 0  # total environment steps
 
     def save(self, path):
         """ save relevant properties in given path"""
@@ -110,6 +111,7 @@ class _Base:
                           video_callable=lambda episode_id: True)
         with torch.no_grad():
             test_rewards = []
+            total_test_steps=0
             for ep in range(episodes):
                 terminal = False
                 obs_n = env.reset()
@@ -129,15 +131,17 @@ class _Base:
                     step += 1
                     for i, r_n in enumerate(reward_n):
                         ep_reward[i] += r_n
+
+                total_test_steps += step
                 test_rewards.append(ep_reward)
 
             test_rewards = np.array(test_rewards).mean(axis=0)
             if log:
                 # log - test
                 for i, r_n in enumerate(test_rewards):
-                    self.writer.add_scalar('agent_{}/eval_reward'.format(i), r_n, self._update_iter)
-                self.writer.add_scalar('_overall/eval_reward', sum(test_rewards), self._update_iter)
-
+                    self.writer.add_scalar('agent_{}/eval_reward'.format(i), r_n, self._step_iter)
+                self.writer.add_scalar('_overall/eval_reward', sum(test_rewards), self._step_iter)
+                self.writer.add_scalar('_overall/test_ep_steps', total_test_steps / episodes, self._step_iter)
         if record:
             env.close()
 

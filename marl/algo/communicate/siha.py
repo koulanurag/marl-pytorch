@@ -39,7 +39,6 @@ class SIHA(_Base):
         self.entropy_coef = 0.01
         self.critic_loss_coef = 0.5
         self.truncate_n = None
-        self._step_iter = 0
         self.gae_lambda = 1
         self.share_iter = 5
 
@@ -179,6 +178,7 @@ class SIHA(_Base):
             for i, r_n in enumerate(log_ep_reward):
                 self.writer.add_scalar('agent_{}/train_reward'.format(i), r_n, self._step_iter)
             self.writer.add_scalar('_overall/train_reward', sum(log_ep_reward), self._step_iter)
+            self.writer.add_scalar('_overall/train_ep_steps', step, self._step_iter)
 
             print(ep, sum(log_ep_reward))
 
@@ -193,6 +193,7 @@ class SIHA(_Base):
                           video_callable=lambda episode_id: True)
         with torch.no_grad():
             test_rewards = []
+            total_test_steps=0
             for ep in range(episodes):
                 terminal = False
                 obs_n = env.reset()
@@ -241,6 +242,7 @@ class SIHA(_Base):
                     for i, r_n in enumerate(reward_n):
                         ep_reward[i] += r_n
 
+                total_test_steps += step
                 test_rewards.append(ep_reward)
 
             test_rewards = np.array(test_rewards).mean(axis=0)
@@ -250,6 +252,7 @@ class SIHA(_Base):
                 for i, r_n in enumerate(test_rewards):
                     self.writer.add_scalar('agent_{}/eval_reward'.format(i), r_n, self._step_iter)
                 self.writer.add_scalar('_overall/eval_reward', sum(test_rewards), self._step_iter)
+                self.writer.add_scalar('_overall/test_ep_steps', total_test_steps / episodes, self._step_iter)
 
         if record:
             env.close()

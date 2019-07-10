@@ -86,8 +86,8 @@ class VDN(_Base):
         soft_update(self.target_model, self.model, self.tau)
 
         # log
-        self.writer.add_scalar('_overall/critic_loss', loss, self._update_iter)
-        self.writer.add_scalar('_overall/beta', beta, self._update_iter)
+        self.writer.add_scalar('_overall/critic_loss', loss, self._step_iter)
+        self.writer.add_scalar('_overall/beta', beta, self._step_iter)
 
         # just keep track of update counts
         self._update_iter += 1
@@ -119,7 +119,7 @@ class VDN(_Base):
             step = 0
             ep_reward = [0 for _ in range(self.model.n_agents)]
             while not terminal:
-
+                self._step_iter += 1
                 torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
                 action_n = self._select_action(self.model, torch_obs_n, explore=True)
 
@@ -141,11 +141,11 @@ class VDN(_Base):
 
             # log - training
             for i, r_n in enumerate(ep_reward):
-                self.writer.add_scalar('agent_{}/train_reward'.format(i), r_n, self._update_iter)
-            self.writer.add_scalar('_overall/train_reward', sum(ep_reward), self._update_iter)
-            self.writer.add_scalar('_overall/exploration_rate', self.exploration.eps, self._update_iter)
+                self.writer.add_scalar('agent_{}/train_reward'.format(i), r_n, self._step_iter)
+            self.writer.add_scalar('_overall/train_reward', sum(ep_reward), self._step_iter)
+            self.writer.add_scalar('_overall/train_ep_steps', step, self._step_iter)
+            self.writer.add_scalar('_overall/exploration_rate', self.exploration.eps, self._step_iter)
 
             print(ep, sum(ep_reward))
 
         return np.array(train_rewards).mean(axis=0), (np.mean(train_loss) if len(train_loss) > 0 else [])
-
