@@ -7,7 +7,8 @@ import torch
 from .._base import _Base
 import numpy as np
 import torch.nn.functional as F
-
+from ma_gym.wrappers import Monitor
+import os
 
 class ACC(_Base):
 
@@ -49,9 +50,9 @@ class ACC(_Base):
         for trajectory_info in self.n_trajectory_info:
             obs, _rewards, _critic, _log_probs, _entropies = trajectory_info
 
-            R = torch.zeros(1, 1)
-            gae = [torch.zeros(1, 1) for _ in range(self.model.n_agents)]
-            _critic.append([torch.zeros(1, 1) for _ in range(self.model.n_agents)])
+            R = torch.zeros(1, 1).to(self.device)
+            gae = [torch.zeros(1, 1).to(self.device) for _ in range(self.model.n_agents)]
+            _critic.append([torch.zeros(1, 1).to(self.device) for _ in range(self.model.n_agents)])
             for step in reversed(range(len(_rewards))):
                 step_reward = sum(_rewards[step])  # each agent maximizes team reward rather than local reward
                 R = self.discount * R + step_reward
@@ -104,7 +105,7 @@ class ACC(_Base):
             step = 0
             log_ep_reward = [0 for _ in range(self.model.n_agents)]
 
-            self.model.init_hidden()
+            self.model.init_hidden(device=self.device)
             while not terminal:
                 ep_obs.append(obs_n)
                 torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
@@ -168,8 +169,14 @@ class ACC(_Base):
 
         return np.array(train_rewards).mean(axis=0), (np.mean(train_loss) if len(train_loss) > 0 else [])
 
-    def test(self, episodes, render=False, log=False):
+    def test(self, episodes, render=False, log=False,record=False):
         self.model.eval()
+
+        env = self.env
+        if record:
+            env = Monitor(self.env_fn(), directory=os.path.join(self.path, 'recordings'), force=True,
+                          video_callable=lambda episode_id: True)
+
         with torch.no_grad():
             test_rewards = []
             for ep in range(episodes):
@@ -178,7 +185,7 @@ class ACC(_Base):
                 step = 0
                 ep_reward = [0 for _ in range(self.model.n_agents)]
 
-                self.model.init_hidden()
+                self.model.init_hidden(device=self.device)
                 while not terminal:
                     if render:
                         self.env.render()
@@ -226,4 +233,6 @@ class ACC(_Base):
                     self.writer.add_scalar('agent_{}/eval_reward'.format(i), r_n, self._step_iter)
                 self.writer.add_scalar('_overall/eval_reward', sum(test_rewards), self._step_iter)
 
+        if record:
+            env.close()
         return test_rewards

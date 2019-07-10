@@ -2,6 +2,8 @@ import os
 import torch
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
+from ma_gym.wrappers import Monitor
+
 
 class _Base:
     """ Base Class for  Multi Agent Algorithms"""
@@ -100,23 +102,27 @@ class _Base:
         self.save(self.last_model_path)
         self.__writer_close()
 
-    def test(self, episodes, render=False, log=False):
+    def test(self, episodes, render=False, log=False, record=False):
         self.model.eval()
+        env = self.env
+        if record:
+            env = Monitor(self.env_fn(), directory=os.path.join(self.path, 'recordings'), force=True,
+                          video_callable=lambda episode_id: True)
         with torch.no_grad():
             test_rewards = []
             for ep in range(episodes):
                 terminal = False
-                obs_n = self.env.reset()
+                obs_n = env.reset()
                 step = 0
                 ep_reward = [0 for _ in range(self.model.n_agents)]
                 while not terminal:
                     if render:
-                        self.env.render()
+                        env.render()
 
                     torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
                     action_n = self._select_action(self.model, torch_obs_n, explore=False)
 
-                    next_obs_n, reward_n, done_n, info = self.env.step(action_n)
+                    next_obs_n, reward_n, done_n, info = env.step(action_n)
                     terminal = all(done_n) or step >= self.episode_max_steps
 
                     obs_n = next_obs_n
@@ -131,5 +137,8 @@ class _Base:
                 for i, r_n in enumerate(test_rewards):
                     self.writer.add_scalar('agent_{}/eval_reward'.format(i), r_n, self._update_iter)
                 self.writer.add_scalar('_overall/eval_reward', sum(test_rewards), self._update_iter)
+
+        if record:
+            env.close()
 
         return test_rewards
