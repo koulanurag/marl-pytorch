@@ -70,17 +70,24 @@ class ACHAC(_Base):
         critic_loss = [c / self.batch_size for c in critic_loss]
         policy_loss = [p / self.batch_size for p in policy_loss]
 
+
+        self.optimizer.zero_grad()
+        loss = (sum(policy_loss) + self.critic_loss_coef * sum(critic_loss))
+        loss.backward()
+        self.optimizer.step()
+
         # log
         for agent_i in range(self.model.n_agents):
             self.writer.add_scalar('agent_{}/policy_loss'.format(agent_i), policy_loss[agent_i].item(),
                                    self._step_iter)
             self.writer.add_scalar('agent_{}/critic_loss'.format(agent_i), critic_loss[agent_i].item(),
                                    self._step_iter)
-
-        self.optimizer.zero_grad()
-        loss = (sum(policy_loss) + self.critic_loss_coef * sum(critic_loss))
-        loss.backward()
-        self.optimizer.step()
+        self.writer.add_scalar('_overall/critic_loss', sum(critic_loss).item(),
+                               self._step_iter)
+        self.writer.add_scalar('_overall/actor_loss', sum(policy_loss).item(),
+                               self._step_iter)
+        self.writer.add_scalar('_overall/loss', loss.item(),
+                               self._step_iter)
 
         return loss.item()
 
