@@ -54,20 +54,13 @@ class MADDPGNet(nn.Module):
         return getattr(self, 'agent_{}'.format(i))
 
 
-# ****************************************************************
-# VDN Network
-# ****************************************************************
-
-
 class VDAgent(nn.Module):
     def __init__(self, obs_space, action_space):
         super().__init__()
 
         self.action_space = action_space
 
-        self._critic = nn.Sequential(nn.Linear(obs_space, 64),
-                                     nn.ReLU(),
-                                     nn.Linear(64, action_space))
+        self._critic = nn.Sequential(nn.Linear(obs_space, action_space))
 
         self._critic[-1].weight.data.fill_(0)
         self._critic[-1].bias.data.fill_(0)
@@ -129,22 +122,16 @@ class LSTMAgentBase(nn.Module):
     def __init__(self, hidden_size):
         super().__init__()
         self.hidden_size = hidden_size
-        self.lstm = nn.LSTMCell(32, self.hidden_size)
         self.hx, self.cx = None, None
 
-        self.lstm.bias_ih.data.fill_(0)
-        self.lstm.bias_hh.data.fill_(0)
+    def lstm(self, x):
+        return x
 
     def init_hidden(self, batch_size=1, device=None):
-        self.hx = torch.zeros(batch_size, self.hidden_size)
-        self.cx = torch.zeros(batch_size, self.hidden_size)
-
-        if device is not None:
-            self.hx, self.cx = self.hx.to(device), self.cx.to(device)
+        pass
 
     def hidden_detach(self):
-        self.hx = self.hx.detach()
-        self.cx = self.cx.detach()
+        pass
 
 
 class ACCAgent(LSTMAgentBase):
