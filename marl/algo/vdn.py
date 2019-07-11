@@ -116,20 +116,20 @@ class VDN(_Base):
         for ep in range(episodes):
             terminal = False
             obs_n = self.env.reset()
-            step = 0
+            ep_step = 0
             ep_reward = [0 for _ in range(self.model.n_agents)]
             while not terminal:
-                self._step_iter += 1
                 torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
                 action_n = self._select_action(self.model, torch_obs_n, explore=True)
 
                 next_obs_n, reward_n, done_n, info = self.env.step(action_n)
-                terminal = all(done_n) or step >= self.episode_max_steps
+                terminal = all(done_n) or ep_step >= self.episode_max_steps
 
                 loss = self.__update(obs_n, action_n, next_obs_n, reward_n, terminal)
 
                 obs_n = next_obs_n
-                step += 1
+                ep_step += 1
+                self._step_iter += 1
                 if loss is not None:
                     train_loss.append(loss)
 
@@ -143,7 +143,7 @@ class VDN(_Base):
             for i, r_n in enumerate(ep_reward):
                 self.writer.add_scalar('agent_{}/train_reward'.format(i), r_n, self._step_iter)
             self.writer.add_scalar('_overall/train_reward', sum(ep_reward), self._step_iter)
-            self.writer.add_scalar('_overall/train_ep_steps', step, self._step_iter)
+            self.writer.add_scalar('_overall/train_ep_steps', ep_step, self._step_iter)
             self.writer.add_scalar('_overall/exploration_rate', self.exploration.eps, self._step_iter)
 
             print(ep, sum(ep_reward))

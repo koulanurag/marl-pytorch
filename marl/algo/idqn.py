@@ -56,7 +56,7 @@ class IDQN(_Base):
         overall_loss = 0
         for i in range(self.model.n_agents):
             q_val_i = self.model.agent(i)(obs_batch[:, i])
-            pred_q = q_val_i.gather(1, action_batch[:, i, :].long())
+            pred_q = q_val_i.gather(1, action_batch[:, i].long().unsqueeze(1))
 
             target_next_obs_q = torch.zeros(pred_q.shape).to(self.device)
             non_final_next_obs_batch = next_obs_batch[:, i][non_final_mask[:, i]]
@@ -75,7 +75,7 @@ class IDQN(_Base):
             prios += loss + 1e-5
             loss = loss.mean()
             overall_loss += loss
-            self.writer.add_scalar('agent_{}/critic_loss'.format(i), loss.item(), self.__update_iter)
+            self.writer.add_scalar('agent_{}/critic_loss'.format(i), loss.item(), self._step_iter)
 
         # Optimize the model
         self.optimizer.zero_grad()
@@ -88,8 +88,8 @@ class IDQN(_Base):
         soft_update(self.target_model, self.model, self.tau)
 
         # log
-        self.writer.add_scalar('_overall/critic_loss', overall_loss, self.__update_iter)
-        self.writer.add_scalar('_overall/beta', beta, self.__update_iter)
+        self.writer.add_scalar('_overall/critic_loss', overall_loss, self._step_iter)
+        self.writer.add_scalar('_overall/beta', beta, self._step_iter)
 
         # just keep track of update counts
         self.__update_iter += 1
@@ -100,19 +100,15 @@ class IDQN(_Base):
         return loss.item()
 
     def _select_action(self, model, obs_n, explore=False):
-        act_n = []
+        """ selects epsilon greedy action for the state """
+        if explore and self.exploration.eps > random.random():
+            act_n = self.env.action_space.sample()
+        else:
+            act_n = []
+            for i in range(model.n_agents):
+                act_n.append(model.agent(i)(obs_n[:, i]).argmax(1).item())
 
-        for i in range(model.n_agents):
-            """ selects epsilon greedy action for the state """
-            one_hot_action = [0 for _ in range(model.agent(i).action_space)]
-            if explore and self.exploration.eps > random.random():
-                one_hot_action[random.randint(0, len(one_hot_action) - 1)] = 1
-            else:
-                one_hot_action[model.agent(i)(obs_n[:, i]).argmax(1).item()] = 1
-
-            act_n.append(one_hot_action)
-
-        return torch.Tensor(act_n)
+        return act_n
 
     def _train(self, episodes):
         self.model.eval()
@@ -122,23 +118,21 @@ class IDQN(_Base):
         for ep in range(episodes):
             terminal = False
             obs_n = self.env.reset()
-            step = 0
+            ep_step = 0
             ep_reward = [0 for _ in range(self.model.n_agents)]
             while not terminal:
-                # self.env.render()
-
                 torch_obs_n = torch.FloatTensor(obs_n).to(self.device).unsqueeze(0)
                 action_n = self._select_action(self.model, torch_obs_n, explore=True)
-                action_n = action_n.cpu().detach().numpy().tolist()
 
                 next_obs_n, reward_n, done_n, info = self.env.step(action_n)
-                terminal = all(done_n) or step >= self.episode_max_steps
-                action_n = [[_.index(1)] for _ in action_n]
+                terminal = all(done_n) or ep_step >= self.episode_max_steps
+
                 done_n = [terminal for _ in range(self.env.n_agents)]
                 loss = self.__update(obs_n, action_n, next_obs_n, reward_n, done_n)
 
                 obs_n = next_obs_n
-                step += 1
+                ep_step += 1
+                self._step_iter += 1
                 if loss is not None:
                     train_loss.append(loss)
 
@@ -150,9 +144,10 @@ class IDQN(_Base):
 
             # log - training
             for i, r_n in enumerate(ep_reward):
-                self.writer.add_scalar('agent_{}/train_reward'.format(i), r_n, self.__update_iter)
-            self.writer.add_scalar('_overall/train_reward', sum(ep_reward), self.__update_iter)
-            self.writer.add_scalar('_overall/exploration_rate', self.exploration.eps, self.__update_iter)
+                self.writer.add_scalar('agent_{}/train_reward'.format(i), r_n, self._step_iter)
+            self.writer.add_scalar('_overall/train_reward', sum(ep_reward), self._step_iter)
+            self.writer.add_scalar('_overall/train_ep_steps', ep_step, self._step_iter)
+            self.writer.add_scalar('_overall/exploration_rate', self.exploration.eps, self._step_iter)
 
             print(ep, sum(ep_reward))
 
