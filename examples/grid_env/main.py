@@ -36,6 +36,8 @@ if __name__ == '__main__':
                         help='test episodes (default: %(default)s)')
     parser.add_argument('--batch_size', type=int, default=128,
                         help='Learning rate (default: %(default)s)')
+    parser.add_argument('--mem_len', type=int, default=10000,
+                        help='Learning rate (default: %(default)s)')
     parser.add_argument('--seed', type=int, default=0,
                         help='seed (default: %(default)s)')
     parser.add_argument('--test_interval', type=int, default=50,
@@ -83,12 +85,12 @@ if __name__ == '__main__':
     elif args.algo == 'vdn':
         vdnet_fn = lambda: VDNet(obs_n, action_space_n)
         algo = VDN(env_fn, vdnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
-                   device=device, mem_len=10000, tau=0.01, path=_path,
+                   device=device, mem_len=args.mem_len, tau=0.01, path=_path,
                    train_episodes=args.train_episodes, episode_max_steps=5000)
     elif args.algo == 'idqn':
         iqnet_fn = lambda: IDQNet(obs_n, action_space_n)
         algo = IDQN(env_fn, iqnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
-                    device=device, mem_len=10000, tau=0.01, path=_path,
+                    device=device, mem_len=args.mem_len, tau=0.01, path=_path,
                     train_episodes=args.train_episodes, episode_max_steps=5000)
     elif args.algo == 'sic':
         from marl.algo.communicate import SIC
@@ -96,7 +98,7 @@ if __name__ == '__main__':
 
         sicnet_fn = lambda: SICNet(obs_n, action_space_n)
         algo = SIC(env_fn, sicnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
-                   device=device, mem_len=10000, tau=0.01, path=_path,
+                   device=device, mem_len=args.mem_len, tau=0.01, path=_path,
                    train_episodes=args.train_episodes, episode_max_steps=5000)
     elif args.algo == 'acc':
         from marl.algo.communicate import ACC
@@ -104,7 +106,7 @@ if __name__ == '__main__':
 
         accnet_fn = lambda: ACCNet(obs_n, action_space_n)
         algo = ACC(env_fn, accnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
-                   device=device, mem_len=10000, tau=0.01, path=_path,
+                   device=device, mem_len=args.mem_len, tau=0.01, path=_path,
                    train_episodes=args.train_episodes, episode_max_steps=5000)
     elif args.algo == 'achac':
         from marl.algo.communicate import ACHAC
@@ -112,7 +114,7 @@ if __name__ == '__main__':
 
         net_fn = lambda: ACHACNet(obs_n, action_space_n)
         algo = ACHAC(env_fn, net_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
-                     device=device, mem_len=10000, tau=0.01, path=_path,
+                     device=device, mem_len=args.mem_len, tau=0.01, path=_path,
                      train_episodes=args.train_episodes, episode_max_steps=5000)
 
     elif args.algo == 'siha':
@@ -121,7 +123,7 @@ if __name__ == '__main__':
 
         net_fn = lambda: SIHANet(obs_n, action_space_n)
         algo = SIHA(env_fn, net_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
-                    device=device, mem_len=10000, tau=0.01, path=_path,
+                    device=device, mem_len=args.mem_len, tau=0.01, path=_path,
                     train_episodes=args.train_episodes, episode_max_steps=5000)
 
     # The real game begins!! Broom, Broom, Broommmm!!
