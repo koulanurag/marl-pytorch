@@ -124,8 +124,9 @@ class LSTMAgentBase(nn.Module):
         self.hidden_size = hidden_size
         self.hx, self.cx = None, None
 
-    def lstm(self, x):
-        return x
+    def lstm(self, x, state):
+        hx, cx = state
+        return x, cx
 
     def init_hidden(self, batch_size=1, device=None):
         pass

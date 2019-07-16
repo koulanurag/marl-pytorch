@@ -9,12 +9,13 @@ import marl
 from marl.algo import MADDPG, VDN, IDQN
 
 import ma_gym
-from networks import MADDPGNet, VDNet, IDQNet
+# from networks import MADDPGNet, VDNet, IDQNet, SIHANet, SICNet, ACCNet, ACHACNet
+from networks_no_lstm import MADDPGNet, VDNet, IDQNet, SIHANet, SICNet, ACCNet, ACHACNet
 
 if __name__ == '__main__':
     # Lets gather arguments
     parser = argparse.ArgumentParser(description='Multi Agent Reinforcement Learning')
-    parser.add_argument('--env', default='CrossOver-v0',
+    parser.add_argument('--env', default='Switch2-v0',
                         help='Name of the environment (default: %(default)s)')
     parser.add_argument('--result_dir', default=os.path.join(os.getcwd(), 'results'),
                         help="Directory Path to store results (default: %(default)s)")
@@ -60,6 +61,7 @@ if __name__ == '__main__':
             raise FileExistsError('{} is not empty. Please use --force to override it'.format(_path))
         else:
             import shutil
+
             shutil.rmtree(_path)
             os.makedirs(_path)
     else:
@@ -94,7 +96,6 @@ if __name__ == '__main__':
                     train_episodes=args.train_episodes, episode_max_steps=5000)
     elif args.algo == 'sic':
         from marl.algo.communicate import SIC
-        from networks import SICNet
 
         sicnet_fn = lambda: SICNet(obs_n, action_space_n)
         algo = SIC(env_fn, sicnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
@@ -102,7 +103,6 @@ if __name__ == '__main__':
                    train_episodes=args.train_episodes, episode_max_steps=5000)
     elif args.algo == 'acc':
         from marl.algo.communicate import ACC
-        from networks import ACCNet
 
         accnet_fn = lambda: ACCNet(obs_n, action_space_n)
         algo = ACC(env_fn, accnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
@@ -110,7 +110,6 @@ if __name__ == '__main__':
                    train_episodes=args.train_episodes, episode_max_steps=5000)
     elif args.algo == 'achac':
         from marl.algo.communicate import ACHAC
-        from networks import ACHACNet
 
         net_fn = lambda: ACHACNet(obs_n, action_space_n)
         algo = ACHAC(env_fn, net_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
@@ -119,7 +118,6 @@ if __name__ == '__main__':
 
     elif args.algo == 'siha':
         from marl.algo.communicate import SIHA
-        from networks import SIHANet
 
         net_fn = lambda: SIHANet(obs_n, action_space_n)
         algo = SIHA(env_fn, net_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
@@ -132,7 +130,7 @@ if __name__ == '__main__':
             algo.train(test_interval=args.test_interval)
         if args.test:
             algo.restore()
-            test_score = algo.test(episodes=args.test_episodes, render=True, log=False,record=True)
+            test_score = algo.test(episodes=args.test_episodes, render=True, log=False, record=True)
             print(test_score)
     finally:
         algo.close()
