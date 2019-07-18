@@ -9,8 +9,6 @@ import marl
 from marl.algo import MADDPG, VDN, IDQN
 
 import ma_gym
-# from networks import MADDPGNet, VDNet, IDQNet, SIHANet, SICNet, ACCNet, ACHACNet
-from networks_no_lstm import MADDPGNet, VDNet, IDQNet, SIHANet, SICNet, ACCNet, ACHACNet
 
 if __name__ == '__main__':
     # Lets gather arguments
@@ -21,7 +19,7 @@ if __name__ == '__main__':
                         help="Directory Path to store results (default: %(default)s)")
     parser.add_argument('--no_cuda', action='store_true', default=False,
                         help='Enforces no cuda usage (default: %(default)s)')
-    parser.add_argument('--algo', choices=['maddpg', 'vdn', 'idqn', 'sic', 'acc', 'achac', 'siha'],
+    parser.add_argument('--algo', choices=['maddpg', 'vdn', 'idqn', 'sic', 'acc', 'achac', 'siha','sihca'],
                         help='Training Algorithm', required=True)
     parser.add_argument('--train', action='store_true', default=False,
                         help='Trains the model')
@@ -49,12 +47,19 @@ if __name__ == '__main__':
                         help='log_suffix (default: %(default)s)')
     parser.add_argument('--force', action='store_true', default=False,
                         help='Trains the model')
+    parser.add_argument('--no_lstm', action='store_true', default=False,
+                        help='Networks has lstm or not')
 
     args = parser.parse_args()
     device = 'cuda' if ((not args.no_cuda) and torch.cuda.is_available()) else 'cpu'
     args.env_result_dir = os.path.join(args.result_dir, args.env)
     _path = os.path.join(args.env_result_dir, args.algo.upper(), 'runs')
     _path = os.path.join(_path, 'run_{}_{}'.format(args.run_i, args.log_suffix))
+
+    if args.no_lstm:
+        from networks_no_lstm import MADDPGNet, VDNet, IDQNet, SIHANet, SICNet, ACCNet, ACHACNet, SIHCANet
+    else:
+        from networks import MADDPGNet, VDNet, IDQNet, SIHANet, SICNet, ACCNet, ACHACNet, SIHCANet
 
     if args.train and os.path.exists(_path) and os.listdir(_path):
         if not args.force:
@@ -123,6 +128,14 @@ if __name__ == '__main__':
         algo = SIHA(env_fn, net_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
                     device=device, mem_len=args.mem_len, tau=0.01, path=_path,
                     train_episodes=args.train_episodes, episode_max_steps=5000)
+
+    elif args.algo == 'sihca':
+        from marl.algo.communicate import SIHCA
+
+        net_fn = lambda: SIHCANet(obs_n, action_space_n)
+        algo = SIHCA(env_fn, net_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
+                     device=device, mem_len=args.mem_len, tau=0.01, path=_path,
+                     train_episodes=args.train_episodes, episode_max_steps=5000)
 
     # The real game begins!! Broom, Broom, Broommmm!!
     try:

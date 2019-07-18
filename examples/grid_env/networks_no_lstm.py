@@ -315,3 +315,64 @@ class SIHANet(nn.Module):
     def hidden_detach(self):
         for i in range(self.n_agents):
             getattr(self, 'agent_{}'.format(i)).hidden_detach()
+
+
+# *********************************************************************
+
+# *********************************************************************
+
+
+class SIHCAAgent(LSTMAgentBase):
+    def __init__(self, obs_space, n_agents, action_space):
+        super().__init__(hidden_size=32)
+        self.neighbours_n = n_agents - 1
+        self.action_space = action_space
+
+        self.x_layer = nn.Sequential(nn.Linear(obs_space, 64),
+                                     nn.ReLU(),
+                                     nn.Linear(64, 32),
+                                     nn.ReLU())
+
+        # hidden_size (locat state) + hidden size ( global state)
+        self._critic = nn.Sequential(nn.Linear(self.hidden_size + n_agents, 1))
+        self.pi = nn.Sequential(nn.Linear(self.hidden_size * 2, action_space, bias=False))
+
+        self._critic[-1].weight.data.fill_(0)
+        self._critic[-1].bias.data.fill_(0)
+
+    def get_thought(self, input):
+        x = self.x_layer(input)
+        self.hx, self.cx = self.lstm(x, (self.hx, self.cx))
+        return self.hx
+
+    def forward(self, global_thought):
+        if self.neighbours_n >= 1:
+            x = torch.cat((self.hx, global_thought), dim=1)
+        else:
+            x = self.hx
+        return self.pi(x)
+
+    def critic(self, global_thought, global_action):
+        x = torch.cat((global_thought, global_action.unsqueeze(0)), dim=1)
+        return self._critic(x)
+
+
+class SIHCANet(nn.Module):
+    def __init__(self, obs_space_n, action_space_n):
+        super().__init__()
+
+        self.n_agents = len(obs_space_n)
+        for i in range(self.n_agents):
+            agent_i = 'agent_{}'.format(i)
+            setattr(self, agent_i, SIHCAAgent(len(obs_space_n[i]), self.n_agents, action_space_n[i].n))
+
+    def agent(self, i):
+        return getattr(self, 'agent_{}'.format(i))
+
+    def init_hidden(self, batch=1, device=None):
+        for i in range(self.n_agents):
+            getattr(self, 'agent_{}'.format(i)).init_hidden(batch, device)
+
+    def hidden_detach(self):
+        for i in range(self.n_agents):
+            getattr(self, 'agent_{}'.format(i)).hidden_detach()
