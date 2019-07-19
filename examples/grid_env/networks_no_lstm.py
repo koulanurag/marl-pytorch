@@ -321,6 +321,20 @@ class SIHANet(nn.Module):
 
 # *********************************************************************
 
+class SIHCA_Critic(nn.Module):
+    def __init__(self, input_size):
+        super().__init__()
+        self.q_val = nn.Sequential(nn.Linear(input_size, 1))
+        self.adv = nn.Sequential(nn.Linear(input_size, 1), nn.Tanh())
+
+        self.q_val[-1].weight.data.fill_(0)
+        self.q_val[-1].bias.data.fill_(0)
+        self.adv[-2].weight.data.fill_(0)
+        self.adv[-2].bias.data.fill_(0)
+
+    def forward(self, x):
+        return self.q_val(x) - self.adv(x)
+
 
 class SIHCAAgent(LSTMAgentBase):
     def __init__(self, obs_space, n_agents, action_space):
@@ -334,11 +348,8 @@ class SIHCAAgent(LSTMAgentBase):
                                      nn.ReLU())
 
         # hidden_size (locat state) + hidden size ( global state)
-        self._critic = nn.Sequential(nn.Linear(self.hidden_size + n_agents, 1))
+        self._critic = SIHCA_Critic(self.hidden_size + n_agents)
         self.pi = nn.Sequential(nn.Linear(self.hidden_size * 2, action_space, bias=False))
-
-        self._critic[-1].weight.data.fill_(0)
-        self._critic[-1].bias.data.fill_(0)
 
     def get_thought(self, input):
         x = self.x_layer(input)
