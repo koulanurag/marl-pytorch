@@ -333,7 +333,7 @@ class SIHCA_Critic(nn.Module):
         self.adv[-2].bias.data.fill_(0)
 
     def forward(self, x):
-        return self.q_val(x) - self.adv(x)
+        return self.q_val(x)
 
 
 class SIHCAAgent(LSTMAgentBase):

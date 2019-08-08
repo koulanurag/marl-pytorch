@@ -6,7 +6,7 @@ import numpy as np
 import gym
 
 import marl
-from marl.algo import MADDPG, VDN, IDQN
+from marl.algo import MADDPG, VDN, IDQN, DQNConsensus, DQNShareNoConsensus
 
 import ma_gym
 
@@ -19,7 +19,8 @@ if __name__ == '__main__':
                         help="Directory Path to store results (default: %(default)s)")
     parser.add_argument('--no_cuda', action='store_true', default=False,
                         help='Enforces no cuda usage (default: %(default)s)')
-    parser.add_argument('--algo', choices=['maddpg', 'vdn', 'idqn', 'sic', 'acc', 'achac', 'siha','sihca'],
+    parser.add_argument('--algo', choices=['maddpg', 'vdn', 'idqn', 'sic', 'acc',
+                                           'achac', 'siha', 'sihca', 'dqn_consensus', 'dqn_share_noconsensus'],
                         help='Training Algorithm', required=True)
     parser.add_argument('--train', action='store_true', default=False,
                         help='Trains the model')
@@ -59,7 +60,7 @@ if __name__ == '__main__':
     if args.no_lstm:
         from networks_no_lstm import MADDPGNet, VDNet, IDQNet, SIHANet, SICNet, ACCNet, ACHACNet, SIHCANet
     else:
-        from networks import MADDPGNet, VDNet, IDQNet, SIHANet, SICNet, ACCNet, ACHACNet, SIHCANet
+        from networks import MADDPGNet, VDNet, IDQNet, SIHANet, SICNet, ACCNet, ACHACNet, SIHCANet, DQNConsensusNet
 
     if args.train and os.path.exists(_path) and os.listdir(_path):
         if not args.force:
@@ -136,6 +137,18 @@ if __name__ == '__main__':
         algo = SIHCA(env_fn, net_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
                      device=device, mem_len=args.mem_len, tau=0.01, path=_path,
                      train_episodes=args.train_episodes, episode_max_steps=5000)
+
+    elif args.algo == 'dqn_consensus':
+        iqnet_fn = lambda: DQNConsensusNet(obs_n, action_space_n)
+        algo = DQNConsensus(env_fn, iqnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
+                            device=device, mem_len=args.mem_len, tau=0.01, path=_path,
+                            train_episodes=args.train_episodes, episode_max_steps=5000)
+
+    elif args.algo == 'dqn_share_noconsensus':
+        iqnet_fn = lambda: DQNConsensusNet(obs_n, action_space_n)
+        algo = DQNShareNoConsensus(env_fn, iqnet_fn, lr=args.lr, discount=args.discount, batch_size=args.batch_size,
+                                   device=device, mem_len=args.mem_len, tau=0.01, path=_path,
+                                   train_episodes=args.train_episodes, episode_max_steps=5000)
 
     # The real game begins!! Broom, Broom, Broommmm!!
     try:
