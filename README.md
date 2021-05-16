@@ -2,6 +2,8 @@
 
 Implementations of multi agent reinforcement learning algorithms in pytorch
 
+**[Status: Archived | No Longer Maintained | Code provided as it is]**
+
 ### Algorithms :
 * VDN : Value Decomposition Network
 * MADDPG : Multi Agent Deep Deterministic Policy Gradient
